@@ -248,7 +248,7 @@ export const LandingPage = () => {
         }} transition={{
           delay: 0.8
         }}>
-            <p className="mb-2">Sail the Seas </p>
+            <p className="mb-2 text-lg">Sail the Seas </p>
             <p>Trade goods • Collect ships • Plunder treasure • Become the richest pirate!</p>
           </motion.div>
         </div>
