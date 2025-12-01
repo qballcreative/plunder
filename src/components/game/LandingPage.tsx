@@ -309,7 +309,7 @@ export const LandingPage = () => {
 
       {/* Footer */}
       <footer className="relative py-6 px-4 text-center text-sm text-muted-foreground border-t border-border bg-card/50">
-        <p>Plunder © 2025 • Inspired by Jaipur by Sébastien Pauchon</p>
+        <p>Plunder © 2025 • QBall Creative</p>
       </footer>
     </div>;
 };
