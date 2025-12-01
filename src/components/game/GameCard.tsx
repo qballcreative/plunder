@@ -19,6 +19,7 @@ interface GameCardProps {
   disabled?: boolean;
   faceDown?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
 const cardImages: Record<CardType, string> = {
@@ -54,6 +55,7 @@ export const GameCard = ({
   disabled = false,
   faceDown = false,
   size = 'md',
+  className,
 }: GameCardProps) => {
   const cardImage = cardImages[card.type];
   const label = cardLabels[card.type];
@@ -63,7 +65,8 @@ export const GameCard = ({
       className={cn(
         sizeClasses[size],
         'relative cursor-pointer select-none perspective-1000',
-        disabled && 'opacity-50 cursor-not-allowed'
+        disabled && 'opacity-50 cursor-not-allowed',
+        className
       )}
       onClick={disabled ? undefined : onClick}
       whileHover={disabled ? {} : { scale: 1.05, y: -5 }}

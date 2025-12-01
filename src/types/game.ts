@@ -26,6 +26,18 @@ export interface Player {
   tokens: Token[];
   bonusTokens: BonusToken[];
   isAI?: boolean;
+  hasUsedPirateRaid?: boolean; // For Pirate Raid rule - once per game
+}
+
+export interface OptionalRules {
+  stormRule: boolean; // Discard 2 random market cards every 3rd turn
+  pirateRaid: boolean; // Steal one card from opponent once per game
+  treasureChest: boolean; // Hidden bonus tokens revealed at end
+}
+
+export interface HiddenTreasure {
+  playerId: string;
+  tokens: BonusToken[];
 }
 
 export type GamePhase = 'lobby' | 'playing' | 'roundEnd' | 'gameEnd';
@@ -49,6 +61,9 @@ export interface GameState {
   roundWins: [number, number];
   lastAction: string | null;
   difficulty: Difficulty;
+  optionalRules: OptionalRules;
+  turnCount: number; // For storm rule
+  hiddenTreasures: HiddenTreasure[]; // For treasure chest rule
 }
 
 // Token values based on Jaipur rules
