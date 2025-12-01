@@ -2,95 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Pirata+One&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Pirate Theme - Dark Mode by Default */
+    --background: 20 30% 8%;
+    --foreground: 43 30% 90%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 20 35% 12%;
+    --card-foreground: 43 30% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 20 35% 10%;
+    --popover-foreground: 43 30% 90%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Gold accent */
+    --primary: 43 74% 49%;
+    --primary-foreground: 20 30% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Aged parchment */
+    --secondary: 35 30% 25%;
+    --secondary-foreground: 43 30% 90%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Deep wood */
+    --muted: 20 25% 18%;
+    --muted-foreground: 30 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Ocean teal */
+    --accent: 185 50% 35%;
+    --accent-foreground: 43 30% 95%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Crimson for alerts */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 43 30% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 20 25% 20%;
+    --input: 20 25% 20%;
+    --ring: 43 74% 49%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom Pirate Colors */
+    --gold: 43 74% 49%;
+    --gold-light: 43 80% 60%;
+    --gold-glow: 43 90% 70%;
+    --mahogany: 20 40% 15%;
+    --mahogany-dark: 20 45% 8%;
+    --ocean: 185 50% 35%;
+    --ocean-light: 185 60% 50%;
+    --parchment: 35 40% 85%;
+    --parchment-dark: 35 25% 70%;
+    --crimson: 0 72% 45%;
+    --rum: 25 60% 35%;
+    --silver-metal: 220 10% 70%;
+    --gemstone: 280 60% 50%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Gradients */
+    --gradient-gold: linear-gradient(135deg, hsl(43, 74%, 49%), hsl(35, 80%, 40%));
+    --gradient-wood: linear-gradient(180deg, hsl(20, 40%, 18%), hsl(20, 45%, 10%));
+    --gradient-ocean: linear-gradient(135deg, hsl(185, 50%, 35%), hsl(200, 60%, 25%));
+    --gradient-parchment: linear-gradient(135deg, hsl(35, 40%, 85%), hsl(30, 35%, 75%));
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-gold: 0 0 20px hsl(43, 74%, 49%, 0.4);
+    --shadow-card: 0 8px 32px hsl(0, 0%, 0%, 0.5);
+    --shadow-elevated: 0 12px 40px hsl(0, 0%, 0%, 0.6);
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar - keeping for compatibility */
+    --sidebar-background: 20 35% 10%;
+    --sidebar-foreground: 43 30% 90%;
+    --sidebar-primary: 43 74% 49%;
+    --sidebar-primary-foreground: 20 30% 8%;
+    --sidebar-accent: 185 50% 35%;
+    --sidebar-accent-foreground: 43 30% 95%;
+    --sidebar-border: 20 25% 20%;
+    --sidebar-ring: 43 74% 49%;
   }
 }
 
@@ -101,5 +87,146 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Crimson Text', Georgia, serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Pirata One', cursive;
+  }
+}
+
+@layer components {
+  .pirate-title {
+    font-family: 'Pirata One', cursive;
+    @apply text-primary;
+    text-shadow: 2px 2px 4px hsl(var(--mahogany-dark));
+  }
+
+  .wood-texture {
+    background: linear-gradient(135deg, 
+      hsl(20, 40%, 15%) 0%, 
+      hsl(20, 35%, 12%) 25%, 
+      hsl(20, 45%, 18%) 50%, 
+      hsl(20, 35%, 12%) 75%, 
+      hsl(20, 40%, 15%) 100%);
+  }
+
+  .parchment-texture {
+    background: linear-gradient(135deg,
+      hsl(35, 40%, 85%) 0%,
+      hsl(30, 35%, 80%) 50%,
+      hsl(35, 40%, 85%) 100%);
+  }
+
+  .gold-text {
+    @apply text-primary;
+    text-shadow: 0 0 10px hsl(var(--gold) / 0.5);
+  }
+
+  .gold-border {
+    @apply border-primary;
+    box-shadow: 0 0 10px hsl(var(--gold) / 0.3);
+  }
+
+  .card-game {
+    @apply rounded-lg border-2 border-primary/30 bg-card;
+    box-shadow: var(--shadow-card);
+  }
+
+  .token-stack {
+    @apply relative flex flex-col items-center;
+  }
+
+  .game-button {
+    @apply px-6 py-3 rounded-lg font-bold transition-all duration-300;
+    @apply bg-gradient-to-b from-primary to-primary/80;
+    @apply text-primary-foreground;
+    @apply hover:from-primary/90 hover:to-primary/70;
+    @apply active:scale-95;
+    box-shadow: 0 4px 15px hsl(var(--gold) / 0.4);
+  }
+
+  .game-button:hover {
+    box-shadow: 0 6px 25px hsl(var(--gold) / 0.6);
+  }
+
+  .ocean-button {
+    @apply px-6 py-3 rounded-lg font-bold transition-all duration-300;
+    @apply bg-gradient-to-b from-accent to-accent/80;
+    @apply text-accent-foreground;
+    @apply hover:from-accent/90 hover:to-accent/70;
+    @apply active:scale-95;
+  }
+
+  .card-flip {
+    perspective: 1000px;
+  }
+
+  .card-flip-inner {
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+  }
+
+  .card-flip-inner.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-front,
+  .card-back {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  .card-back {
+    transform: rotateY(180deg);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-wave {
+    animation: wave 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes shimmer {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+  }
+
+  @keyframes glow {
+    0% { box-shadow: 0 0 5px hsl(var(--gold) / 0.5); }
+    100% { box-shadow: 0 0 25px hsl(var(--gold) / 0.8); }
+  }
+
+  @keyframes wave {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(5px) rotate(1deg); }
+    75% { transform: translateX(-5px) rotate(-1deg); }
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
