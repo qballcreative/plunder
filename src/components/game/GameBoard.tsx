@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, calculateScore } from '@/store/gameStore';
 import { Market } from './Market';
@@ -6,8 +7,9 @@ import { TokenStack } from './TokenStack';
 import { BonusTokens } from './BonusTokens';
 import { ScoreBoard } from './ScoreBoard';
 import { Button } from '@/components/ui/button';
-import { GoodsType } from '@/types/game';
-import { Trophy, RotateCcw, Home, Swords } from 'lucide-react';
+import { GoodsType, Card } from '@/types/game';
+import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const GOODS_ORDER: GoodsType[] = ['gemstones', 'gold', 'silver', 'silks', 'cannonballs', 'rum'];
 
@@ -24,12 +26,25 @@ export const GameBoard = () => {
     getRoundWinner,
     getWinner,
     round,
+    optionalRules,
+    turnCount,
+    canUsePirateRaid,
+    pirateRaid,
+    hiddenTreasures,
   } = useGameStore();
 
+  const [isRaidMode, setIsRaidMode] = useState(false);
+
   const currentPlayer = players[currentPlayerIndex];
-  const opponent = players[currentPlayerIndex === 0 ? 1 : 0];
   const humanPlayer = players.find((p) => !p.isAI)!;
   const aiPlayer = players.find((p) => p.isAI)!;
+
+  const handlePirateRaid = (card: Card) => {
+    pirateRaid(card.id);
+    setIsRaidMode(false);
+  };
+
+  const activeRulesCount = Object.values(optionalRules).filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-background p-4 lg:p-6">
@@ -40,9 +55,42 @@ export const GameBoard = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="font-pirate text-3xl lg:text-4xl text-primary">Plunder</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-pirate text-3xl lg:text-4xl text-primary">Plunder</h1>
+            
+            {/* Active Rules Indicators */}
+            {activeRulesCount > 0 && (
+              <div className="flex items-center gap-1">
+                {optionalRules.stormRule && (
+                  <div className="p-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30" title="Storm Rule Active">
+                    <CloudLightning className="w-4 h-4 text-blue-400" />
+                  </div>
+                )}
+                {optionalRules.pirateRaid && (
+                  <div className="p-1.5 rounded-lg bg-red-500/20 border border-red-500/30" title="Pirate Raid Active">
+                    <Crosshair className="w-4 h-4 text-red-400" />
+                  </div>
+                )}
+                {optionalRules.treasureChest && (
+                  <div className="p-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30" title="Treasure Chest Active">
+                    <Gift className="w-4 h-4 text-amber-400" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           
           <div className="flex items-center gap-2">
+            {/* Storm Rule Turn Counter */}
+            {optionalRules.stormRule && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <CloudLightning className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-blue-400">
+                  {3 - (turnCount % 3)} turn{3 - (turnCount % 3) !== 1 ? 's' : ''} to storm
+                </span>
+              </div>
+            )}
+
             {lastAction && (
               <motion.span
                 key={lastAction}
@@ -87,6 +135,55 @@ export const GameBoard = () => {
               fourCards={bonusTokens.four}
               fiveCards={bonusTokens.five}
             />
+
+            {/* Pirate Raid Button */}
+            {optionalRules.pirateRaid && currentPlayerIndex === 0 && phase === 'playing' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-xl bg-card border border-red-500/20"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Crosshair className="w-5 h-5 text-red-400" />
+                  <h3 className="font-pirate text-lg text-red-400">Pirate Raid</h3>
+                </div>
+                
+                {humanPlayer.hasUsedPirateRaid ? (
+                  <p className="text-xs text-muted-foreground">Already used this game</p>
+                ) : canUsePirateRaid() && !currentPlayer.isAI ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Steal one card from your opponent!
+                    </p>
+                    <Button
+                      size="sm"
+                      variant={isRaidMode ? 'destructive' : 'outline'}
+                      className={cn(
+                        'w-full',
+                        !isRaidMode && 'border-red-500/30 text-red-400 hover:bg-red-500/10'
+                      )}
+                      onClick={() => setIsRaidMode(!isRaidMode)}
+                    >
+                      {isRaidMode ? (
+                        <>
+                          <X className="w-4 h-4 mr-1" />
+                          Cancel Raid
+                        </>
+                      ) : (
+                        <>
+                          <Crosshair className="w-4 h-4 mr-1" />
+                          Activate Raid
+                        </>
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {currentPlayer.isAI ? 'Wait for your turn' : 'Cannot raid (hand full or no targets)'}
+                  </p>
+                )}
+              </motion.div>
+            )}
           </motion.aside>
 
           {/* Main game area */}
@@ -101,6 +198,8 @@ export const GameBoard = () => {
               player={aiPlayer}
               isCurrentPlayer={currentPlayerIndex === 1}
               isOpponent
+              isRaidMode={isRaidMode && currentPlayerIndex === 0}
+              onRaidCard={handlePirateRaid}
             />
 
             {/* Market */}
@@ -172,12 +271,37 @@ export const GameBoard = () => {
                   </h2>
                   
                   {getRoundWinner() && (
-                    <p className="text-xl mb-6">
+                    <p className="text-xl mb-4">
                       <span className="text-primary font-bold">
                         {getRoundWinner()?.name}
                       </span>{' '}
                       wins this round!
                     </p>
+                  )}
+
+                  {/* Hidden Treasures Reveal */}
+                  {optionalRules.treasureChest && hiddenTreasures.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mb-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20"
+                    >
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <Gift className="w-5 h-5 text-amber-400" />
+                        <span className="font-pirate text-amber-400">Treasure Chest Revealed!</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {hiddenTreasures.map((treasure) => {
+                          const player = players.find(p => p.id === treasure.playerId);
+                          return (
+                            <div key={treasure.playerId} className="text-muted-foreground">
+                              {player?.name}: +{treasure.tokens.reduce((sum, t) => sum + t.value, 0)} pts
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
                   )}
 
                   <div className="grid grid-cols-2 gap-4 mb-6">

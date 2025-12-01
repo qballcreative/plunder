@@ -8,6 +8,8 @@ import {
   BonusToken,
   Player,
   Difficulty,
+  OptionalRules,
+  HiddenTreasure,
   INITIAL_TOKEN_VALUES,
   BONUS_THREE_VALUES,
   BONUS_FOUR_VALUES,
@@ -70,6 +72,21 @@ const createBonusTokens = () => ({
   })),
 });
 
+// Hidden treasure tokens for Treasure Chest rule
+const TREASURE_CHEST_VALUES = [2, 3, 4, 5];
+
+const createHiddenTreasures = (playerIds: string[]): HiddenTreasure[] => {
+  const shuffledValues = shuffle(TREASURE_CHEST_VALUES);
+  return playerIds.map((playerId, index) => ({
+    playerId,
+    tokens: [{
+      id: generateId(),
+      cardsCount: 3 as const,
+      value: shuffledValues[index % shuffledValues.length],
+    }],
+  }));
+};
+
 const createPlayer = (id: string, name: string, isAI = false): Player => ({
   id,
   name,
@@ -78,22 +95,30 @@ const createPlayer = (id: string, name: string, isAI = false): Player => ({
   tokens: [],
   bonusTokens: [],
   isAI,
+  hasUsedPirateRaid: false,
 });
 
-const calculateScore = (player: Player): number => {
+export const calculateScore = (player: Player): number => {
   const tokenScore = player.tokens.reduce((sum, t) => sum + t.value, 0);
   const bonusScore = player.bonusTokens.reduce((sum, t) => sum + t.value, 0);
-  const shipBonus = player.ships.length >= 1 ? 5 : 0; // Whoever has more ships gets 5 points
+  const shipBonus = player.ships.length >= 1 ? 5 : 0;
   return tokenScore + bonusScore + shipBonus;
+};
+
+const defaultOptionalRules: OptionalRules = {
+  stormRule: false,
+  pirateRaid: false,
+  treasureChest: false,
 };
 
 interface GameStore extends GameState {
   // Actions
-  startGame: (playerName: string, difficulty: Difficulty) => void;
+  startGame: (playerName: string, difficulty: Difficulty, optionalRules?: OptionalRules) => void;
   takeCard: (cardId: string) => void;
   takeAllShips: () => void;
   exchangeCards: (handCardIds: string[], marketCardIds: string[]) => void;
   sellCards: (cardIds: string[]) => void;
+  pirateRaid: (targetCardId: string) => void;
   endTurn: () => void;
   nextRound: () => void;
   resetGame: () => void;
@@ -105,12 +130,14 @@ interface GameStore extends GameState {
   canTakeCard: (cardId: string) => boolean;
   canSellCards: (cardIds: string[]) => boolean;
   canExchange: (handCardIds: string[], marketCardIds: string[]) => boolean;
+  canUsePirateRaid: () => boolean;
   getCurrentPlayer: () => Player;
   getOpponent: () => Player;
   isGameOver: () => boolean;
   isRoundOver: () => boolean;
   getWinner: () => Player | null;
   getRoundWinner: () => Player | null;
+  getRevealedTreasures: () => HiddenTreasure[];
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -126,8 +153,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   roundWins: [0, 0],
   lastAction: null,
   difficulty: 'medium',
+  optionalRules: defaultOptionalRules,
+  turnCount: 0,
+  hiddenTreasures: [],
 
-  startGame: (playerName, difficulty) => {
+  startGame: (playerName, difficulty, optionalRules = defaultOptionalRules) => {
     const deck = createDeck();
     const market: Card[] = [];
     const players: [Player, Player] = [
@@ -171,6 +201,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    // Create hidden treasures if treasure chest rule is enabled
+    const hiddenTreasures = optionalRules.treasureChest 
+      ? createHiddenTreasures(players.map(p => p.id))
+      : [];
+
     set({
       phase: 'playing',
       deck: remainingDeck,
@@ -183,6 +218,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       roundWins: [0, 0],
       lastAction: null,
       difficulty,
+      optionalRules,
+      turnCount: 0,
+      hiddenTreasures,
     });
   },
 
@@ -343,23 +381,107 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().endTurn();
   },
 
-  endTurn: () => {
-    const { currentPlayerIndex, players } = get();
+  pirateRaid: (targetCardId) => {
+    const { players, currentPlayerIndex, optionalRules } = get();
+    if (!optionalRules.pirateRaid) return;
+
+    const player = players[currentPlayerIndex];
+    if (player.hasUsedPirateRaid) return;
+    if (player.hand.length >= HAND_LIMIT) return;
+
+    const opponentIndex = currentPlayerIndex === 0 ? 1 : 0;
+    const opponent = players[opponentIndex];
+
+    const cardIndex = opponent.hand.findIndex((c) => c.id === targetCardId);
+    if (cardIndex === -1) return;
+
+    const stolenCard = opponent.hand[cardIndex];
     
+    // Remove from opponent and add to player
+    const newOpponentHand = opponent.hand.filter((c) => c.id !== targetCardId);
+    const newPlayerHand = [...player.hand, stolenCard];
+
+    const newPlayers = [...players] as [Player, Player];
+    newPlayers[currentPlayerIndex] = { 
+      ...player, 
+      hand: newPlayerHand,
+      hasUsedPirateRaid: true,
+    };
+    newPlayers[opponentIndex] = { ...opponent, hand: newOpponentHand };
+
+    set({
+      players: newPlayers,
+      lastAction: `${player.name} raided ${opponent.name}'s ${stolenCard.type}!`,
+    });
+
+    get().endTurn();
+  },
+
+  endTurn: () => {
+    const { currentPlayerIndex, players, optionalRules, turnCount, market, deck } = get();
+    
+    // Increment turn count
+    const newTurnCount = turnCount + 1;
+
     // Check for round end
     if (get().isRoundOver()) {
+      // If treasure chest rule is active, reveal and add hidden treasures
+      if (optionalRules.treasureChest) {
+        const { hiddenTreasures } = get();
+        const updatedPlayers = [...players] as [Player, Player];
+        
+        hiddenTreasures.forEach((treasure) => {
+          const playerIndex = updatedPlayers.findIndex(p => p.id === treasure.playerId);
+          if (playerIndex !== -1) {
+            updatedPlayers[playerIndex] = {
+              ...updatedPlayers[playerIndex],
+              bonusTokens: [...updatedPlayers[playerIndex].bonusTokens, ...treasure.tokens],
+            };
+          }
+        });
+        
+        set({ players: updatedPlayers });
+      }
+
       const winner = get().getRoundWinner();
       const roundWins = [...get().roundWins] as [number, number];
       if (winner) {
         const winnerIndex = players.findIndex((p) => p.id === winner.id);
         roundWins[winnerIndex]++;
       }
-      set({ phase: 'roundEnd', roundWins });
+      set({ phase: 'roundEnd', roundWins, turnCount: newTurnCount });
       return;
     }
 
+    // Apply Storm Rule - every 3rd turn, discard 2 random market cards
+    let newMarket = [...market];
+    let newDeck = [...deck];
+    let stormMessage = '';
+    
+    if (optionalRules.stormRule && newTurnCount % 3 === 0 && newMarket.length >= 2) {
+      // Remove 2 random non-ship cards from market
+      const nonShipCards = newMarket.filter(c => c.type !== 'ships');
+      const cardsToRemove = shuffle(nonShipCards).slice(0, Math.min(2, nonShipCards.length));
+      
+      newMarket = newMarket.filter(c => !cardsToRemove.some(r => r.id === c.id));
+      
+      // Refill market from deck
+      const cardsNeeded = MARKET_SIZE - newMarket.length;
+      newMarket = [...newMarket, ...newDeck.slice(0, cardsNeeded)];
+      newDeck = newDeck.slice(cardsNeeded);
+      
+      stormMessage = ` ⛈️ Storm washes away ${cardsToRemove.length} cards!`;
+    }
+
     const nextIndex = currentPlayerIndex === 0 ? 1 : 0;
-    set({ currentPlayerIndex: nextIndex });
+    
+    set({ 
+      currentPlayerIndex: nextIndex, 
+      turnCount: newTurnCount,
+      market: newMarket,
+      deck: newDeck,
+      lastAction: get().lastAction + stormMessage,
+    });
 
     // If next player is AI, trigger AI move
     if (players[nextIndex].isAI) {
@@ -368,7 +490,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   nextRound: () => {
-    const { round, maxRounds, roundWins } = get();
+    const { round, maxRounds, roundWins, optionalRules } = get();
     
     // Check if game is over
     if (round >= maxRounds || roundWins[0] >= 2 || roundWins[1] >= 2) {
@@ -385,6 +507,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ships: [],
       tokens: [],
       bonusTokens: [],
+      hasUsedPirateRaid: false, // Reset pirate raid for new round
     })) as [Player, Player];
 
     // Deal initial market
@@ -415,6 +538,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    // Create new hidden treasures for this round
+    const hiddenTreasures = optionalRules.treasureChest 
+      ? createHiddenTreasures(players.map(p => p.id))
+      : [];
+
     set({
       phase: 'playing',
       deck: remainingDeck,
@@ -425,6 +553,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentPlayerIndex: 0,
       round: round + 1,
       lastAction: null,
+      turnCount: 0,
+      hiddenTreasures,
     });
   },
 
@@ -440,16 +570,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
       round: 1,
       roundWins: [0, 0],
       lastAction: null,
+      optionalRules: defaultOptionalRules,
+      turnCount: 0,
+      hiddenTreasures: [],
     });
   },
 
   makeAIMove: () => {
-    const { market, players, currentPlayerIndex, tokenStacks, difficulty } = get();
+    const { market, players, currentPlayerIndex, tokenStacks, difficulty, optionalRules } = get();
     const ai = players[currentPlayerIndex];
     if (!ai.isAI) return;
 
     // AI decision making
     const actions: { action: () => void; score: number }[] = [];
+
+    // Evaluate pirate raid (if available and has good targets)
+    if (optionalRules.pirateRaid && !ai.hasUsedPirateRaid && ai.hand.length < HAND_LIMIT) {
+      const opponent = players[currentPlayerIndex === 0 ? 1 : 0];
+      const valuableTypes: GoodsType[] = ['gemstones', 'gold', 'silver'];
+      
+      opponent.hand.forEach((card) => {
+        if (valuableTypes.includes(card.type as GoodsType)) {
+          const stack = tokenStacks[card.type as GoodsType];
+          let score = stack.length > 0 ? stack[0].value + 3 : 5; // High priority for valuable cards
+          actions.push({ action: () => get().pirateRaid(card.id), score });
+        }
+      });
+    }
 
     // Evaluate taking each card
     market.forEach((card) => {
@@ -553,6 +700,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return true;
   },
 
+  canUsePirateRaid: () => {
+    const { players, currentPlayerIndex, optionalRules } = get();
+    if (!optionalRules.pirateRaid) return false;
+    
+    const player = players[currentPlayerIndex];
+    if (player.hasUsedPirateRaid) return false;
+    if (player.hand.length >= HAND_LIMIT) return false;
+    
+    const opponent = players[currentPlayerIndex === 0 ? 1 : 0];
+    return opponent.hand.length > 0;
+  },
+
   getCurrentPlayer: () => {
     const { players, currentPlayerIndex } = get();
     return players[currentPlayerIndex];
@@ -606,6 +765,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     return null;
   },
-}));
 
-export { calculateScore };
+  getRevealedTreasures: () => {
+    const { hiddenTreasures, phase, optionalRules } = get();
+    if (!optionalRules.treasureChest) return [];
+    if (phase !== 'roundEnd' && phase !== 'gameEnd') return [];
+    return hiddenTreasures;
+  },
+}));
