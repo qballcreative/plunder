@@ -6,63 +6,68 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import heroBg from '@/assets/hero-bg.jpg';
-import { 
-  Anchor, 
-  Swords, 
-  Users, 
-  Skull, 
-  Ship, 
-  Gem,
-  Coins,
-  Wine,
-  CircleDot,
-  Shirt,
-} from 'lucide-react';
-
-const difficultyConfig: Record<Difficulty, { label: string; description: string; color: string }> = {
+import { Anchor, Swords, Users, Skull, Ship, Gem, Coins, Wine, CircleDot, Shirt } from 'lucide-react';
+const difficultyConfig: Record<Difficulty, {
+  label: string;
+  description: string;
+  color: string;
+}> = {
   easy: {
     label: 'Cabin Boy',
     description: 'Perfect for landlubbers',
-    color: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10',
+    color: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10'
   },
   medium: {
     label: 'First Mate',
     description: 'A worthy challenge',
-    color: 'text-primary border-primary/30 bg-primary/10',
+    color: 'text-primary border-primary/30 bg-primary/10'
   },
   hard: {
     label: 'Dread Pirate',
     description: 'Only for sea dogs',
-    color: 'text-destructive border-destructive/30 bg-destructive/10',
-  },
+    color: 'text-destructive border-destructive/30 bg-destructive/10'
+  }
 };
-
-const goods = [
-  { icon: Wine, label: 'Rum', color: 'text-amber-500' },
-  { icon: CircleDot, label: 'Cannonballs', color: 'text-slate-400' },
-  { icon: Shirt, label: 'Silks', color: 'text-purple-400' },
-  { icon: Coins, label: 'Silver', color: 'text-gray-300' },
-  { icon: Coins, label: 'Gold', color: 'text-yellow-400' },
-  { icon: Gem, label: 'Gemstones', color: 'text-emerald-400' },
-];
-
+const goods = [{
+  icon: Wine,
+  label: 'Rum',
+  color: 'text-amber-500'
+}, {
+  icon: CircleDot,
+  label: 'Cannonballs',
+  color: 'text-slate-400'
+}, {
+  icon: Shirt,
+  label: 'Silks',
+  color: 'text-purple-400'
+}, {
+  icon: Coins,
+  label: 'Silver',
+  color: 'text-gray-300'
+}, {
+  icon: Coins,
+  label: 'Gold',
+  color: 'text-yellow-400'
+}, {
+  icon: Gem,
+  label: 'Gemstones',
+  color: 'text-emerald-400'
+}];
 export const LandingPage = () => {
   const [playerName, setPlayerName] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const { startGame } = useGameStore();
-
+  const {
+    startGame
+  } = useGameStore();
   const handleStart = () => {
     const name = playerName.trim() || 'Captain';
     startGame(name, difficulty);
   };
-
-  return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
+  return <div className="min-h-screen flex flex-col relative overflow-hidden">
       {/* Hero Background */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroBg})` }}
-      >
+      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
+      backgroundImage: `url(${heroBg})`
+    }}>
         <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/70 to-background" />
       </div>
 
@@ -70,46 +75,40 @@ export const LandingPage = () => {
       <section className="relative flex-1 flex items-center justify-center p-4">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(3)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute text-primary/10"
-              initial={{ 
-                x: `${20 + i * 30}%`,
-                y: `${10 + i * 25}%`,
-                rotate: Math.random() * 30,
-              }}
-              animate={{ 
-                y: [null, `${5 + i * 20}%`],
-                rotate: [null, Math.random() * 30 - 15],
-              }}
-              transition={{
-                duration: 15 + Math.random() * 10,
-                repeat: Infinity,
-                repeatType: 'reverse',
-              }}
-            >
-              {i % 2 === 0 ? (
-                <Anchor className="w-24 h-24 lg:w-32 lg:h-32" />
-              ) : (
-                <Ship className="w-28 h-28 lg:w-40 lg:h-40" />
-              )}
-            </motion.div>
-          ))}
+          {[...Array(3)].map((_, i) => <motion.div key={i} className="absolute text-primary/10" initial={{
+          x: `${20 + i * 30}%`,
+          y: `${10 + i * 25}%`,
+          rotate: Math.random() * 30
+        }} animate={{
+          y: [null, `${5 + i * 20}%`],
+          rotate: [null, Math.random() * 30 - 15]
+        }} transition={{
+          duration: 15 + Math.random() * 10,
+          repeat: Infinity,
+          repeatType: 'reverse'
+        }}>
+              {i % 2 === 0 ? <Anchor className="w-24 h-24 lg:w-32 lg:h-32" /> : <Ship className="w-28 h-28 lg:w-40 lg:h-40" />}
+            </motion.div>)}
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
           {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
+          <motion.div initial={{
+          opacity: 0,
+          y: -30
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} transition={{
+          duration: 0.6
+        }}>
             <div className="flex items-center justify-center gap-4 mb-4">
-              <motion.div
-                animate={{ rotate: [0, -10, 10, 0] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              >
+              <motion.div animate={{
+              rotate: [0, -10, 10, 0]
+            }} transition={{
+              duration: 4,
+              repeat: Infinity
+            }}>
                 <Skull className="w-12 h-12 lg:w-16 lg:h-16 text-primary drop-shadow-lg" />
               </motion.div>
             </div>
@@ -123,33 +122,37 @@ export const LandingPage = () => {
           </motion.div>
 
           {/* Goods showcase */}
-          <motion.div
-            className="flex items-center justify-center gap-4 lg:gap-6 my-8 flex-wrap"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            {goods.map((good, i) => (
-              <motion.div
-                key={good.label}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4 + i * 0.1 }}
-                className="flex flex-col items-center p-2 rounded-lg bg-card/30 backdrop-blur-sm"
-              >
+          <motion.div className="flex items-center justify-center gap-4 lg:gap-6 my-8 flex-wrap" initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          delay: 0.3
+        }}>
+            {goods.map((good, i) => <motion.div key={good.label} initial={{
+            opacity: 0,
+            scale: 0
+          }} animate={{
+            opacity: 1,
+            scale: 1
+          }} transition={{
+            delay: 0.4 + i * 0.1
+          }} className="flex flex-col items-center p-2 rounded-lg bg-card/30 backdrop-blur-sm">
                 <good.icon className={cn('w-8 h-8 lg:w-10 lg:h-10', good.color)} />
                 <span className="text-xs text-foreground/70 mt-1">{good.label}</span>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </motion.div>
 
           {/* Game setup */}
-          <motion.div
-            className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+          <motion.div className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
+          opacity: 0,
+          y: 30
+        }} animate={{
+          opacity: 1,
+          y: 0
+        }} transition={{
+          delay: 0.5
+        }}>
             <h2 className="font-pirate text-2xl lg:text-3xl text-primary mb-6">
               Set Sail
             </h2>
@@ -159,13 +162,7 @@ export const LandingPage = () => {
               <label className="block text-sm text-muted-foreground mb-2 text-left">
                 Your Pirate Name
               </label>
-              <Input
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Captain..."
-                className="bg-muted/50 border-primary/30 focus:border-primary text-center text-lg"
-                onKeyDown={(e) => e.key === 'Enter' && handleStart()}
-              />
+              <Input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="Captain..." className="bg-muted/50 border-primary/30 focus:border-primary text-center text-lg" onKeyDown={e => e.key === 'Enter' && handleStart()} />
             </div>
 
             {/* Difficulty selection */}
@@ -174,46 +171,26 @@ export const LandingPage = () => {
                 Difficulty
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(difficultyConfig) as Difficulty[]).map((level) => {
-                  const config = difficultyConfig[level];
-                  return (
-                    <button
-                      key={level}
-                      onClick={() => setDifficulty(level)}
-                      className={cn(
-                        'p-3 rounded-lg border-2 transition-all duration-200',
-                        difficulty === level
-                          ? config.color
-                          : 'border-border hover:border-primary/30 bg-muted/30'
-                      )}
-                    >
+                {(Object.keys(difficultyConfig) as Difficulty[]).map(level => {
+                const config = difficultyConfig[level];
+                return <button key={level} onClick={() => setDifficulty(level)} className={cn('p-3 rounded-lg border-2 transition-all duration-200', difficulty === level ? config.color : 'border-border hover:border-primary/30 bg-muted/30')}>
                       <p className="font-bold text-sm">{config.label}</p>
                       <p className="text-xs text-muted-foreground mt-1 hidden lg:block">
                         {config.description}
                       </p>
-                    </button>
-                  );
-                })}
+                    </button>;
+              })}
               </div>
             </div>
 
             {/* Start buttons */}
             <div className="space-y-3">
-              <Button
-                onClick={handleStart}
-                variant="gold"
-                size="xl"
-                className="w-full font-pirate"
-              >
+              <Button onClick={handleStart} variant="gold" size="xl" className="w-full font-pirate">
                 <Swords className="w-6 h-6 mr-2" />
                 Battle the AI
               </Button>
               
-              <Button
-                variant="outline"
-                className="w-full border-accent/30 text-accent hover:bg-accent/10"
-                disabled
-              >
+              <Button variant="outline" className="w-full border-accent/30 text-accent hover:bg-accent/10" disabled>
                 <Users className="w-5 h-5 mr-2" />
                 Multiplayer (Coming Soon)
               </Button>
@@ -221,12 +198,13 @@ export const LandingPage = () => {
           </motion.div>
 
           {/* Rules preview */}
-          <motion.div
-            className="mt-8 text-sm text-foreground/60"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-          >
+          <motion.div className="mt-8 text-sm text-foreground/60" initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          delay: 0.8
+        }}>
             <p className="mb-2">Based on the award-winning Jaipur card game</p>
             <p>Trade goods • Collect ships • Plunder treasure • Become the richest pirate!</p>
           </motion.div>
@@ -241,45 +219,43 @@ export const LandingPage = () => {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <Ship className="w-10 h-10" />,
-                title: 'Take',
-                description: 'Take a card from the market or take all ships at once to grow your fleet.',
-              },
-              {
-                icon: <Swords className="w-10 h-10" />,
-                title: 'Exchange',
-                description: 'Swap 2+ cards between your hand and the market. Use ships as wildcards!',
-              },
-              {
-                icon: <Coins className="w-10 h-10" />,
-                title: 'Sell',
-                description: 'Sell matching cards for treasure tokens. More cards means bigger bonus rewards!',
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                className="p-6 rounded-xl bg-muted/50 border border-border text-center hover:border-primary/30 transition-colors"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9 + i * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
+            {[{
+            icon: <Ship className="w-10 h-10" />,
+            title: 'Take',
+            description: 'Take a card from the market or take all ships at once to grow your fleet.'
+          }, {
+            icon: <Swords className="w-10 h-10" />,
+            title: 'Exchange',
+            description: 'Swap 2+ cards between your hand and the market. Use ships as wildcards!'
+          }, {
+            icon: <Coins className="w-10 h-10" />,
+            title: 'Sell',
+            description: 'Sell matching cards for treasure tokens. More cards means bigger bonus rewards!'
+          }].map((item, i) => <motion.div key={item.title} className="p-6 rounded-xl bg-muted/50 border border-border text-center hover:border-primary/30 transition-colors" initial={{
+            opacity: 0,
+            y: 20
+          }} animate={{
+            opacity: 1,
+            y: 0
+          }} transition={{
+            delay: 0.9 + i * 0.1
+          }} whileHover={{
+            scale: 1.02
+          }}>
                 <div className="text-primary mb-4 flex justify-center">{item.icon}</div>
                 <h3 className="font-pirate text-xl text-primary mb-2">{item.title}</h3>
                 <p className="text-muted-foreground text-sm">{item.description}</p>
-              </motion.div>
-            ))}
+              </motion.div>)}
           </div>
 
           {/* Win condition */}
-          <motion.div
-            className="mt-8 p-6 rounded-xl bg-primary/10 border border-primary/20 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
-          >
+          <motion.div className="mt-8 p-6 rounded-xl bg-primary/10 border border-primary/20 text-center" initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          delay: 1.2
+        }}>
             <h3 className="font-pirate text-xl text-primary mb-2">Victory Condition</h3>
             <p className="text-foreground/80">
               Win 2 out of 3 rounds. Each round ends when the deck empties or 3 goods token stacks are depleted.
@@ -292,8 +268,7 @@ export const LandingPage = () => {
 
       {/* Footer */}
       <footer className="relative py-6 px-4 text-center text-sm text-muted-foreground border-t border-border bg-card/50">
-        <p>Plunder © 2024 • Inspired by Jaipur by Sébastien Pauchon</p>
+        <p>Plunder © 2025 • Inspired by Jaipur by Sébastien Pauchon</p>
       </footer>
-    </div>
-  );
+    </div>;
 };
