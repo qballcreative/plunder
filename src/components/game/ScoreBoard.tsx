@@ -1,0 +1,100 @@
+import { motion } from 'framer-motion';
+import { useGameStore, calculateScore } from '@/store/gameStore';
+import { cn } from '@/lib/utils';
+import { Trophy, Anchor, Star, Coins } from 'lucide-react';
+
+export const ScoreBoard = () => {
+  const { players, round, maxRounds, roundWins } = useGameStore();
+
+  return (
+    <div className="p-4 rounded-xl bg-card border border-primary/20">
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <Trophy className="w-5 h-5 text-primary" />
+        <h2 className="font-pirate text-xl text-primary">Scoreboard</h2>
+      </div>
+
+      {/* Round indicator */}
+      <div className="text-center mb-4">
+        <span className="text-sm text-muted-foreground">Round</span>
+        <div className="flex items-center justify-center gap-1 mt-1">
+          {Array.from({ length: maxRounds }).map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'w-8 h-8 rounded-full border-2 flex items-center justify-center',
+                i + 1 === round
+                  ? 'border-primary bg-primary/20 text-primary'
+                  : i + 1 < round
+                  ? 'border-primary/50 bg-primary/10 text-primary/50'
+                  : 'border-border text-muted-foreground'
+              )}
+            >
+              {i + 1}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Player scores */}
+      <div className="space-y-3">
+        {players.map((player, index) => {
+          const score = calculateScore(player);
+          
+          return (
+            <motion.div
+              key={player.id}
+              className={cn(
+                'p-3 rounded-lg border',
+                player.isAI ? 'bg-muted/50 border-border' : 'bg-primary/5 border-primary/20'
+              )}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className={cn(
+                  'font-bold',
+                  player.isAI ? 'text-foreground' : 'text-primary'
+                )}>
+                  {player.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: roundWins[index] }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-primary fill-primary" />
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Coins className="w-3 h-3" />
+                  <span>{player.tokens.reduce((s, t) => s + t.value, 0)}</span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Star className="w-3 h-3" />
+                  <span>{player.bonusTokens.reduce((s, t) => s + t.value, 0)}</span>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Anchor className="w-3 h-3" />
+                  <span>{player.ships.length}</span>
+                </div>
+              </div>
+
+              <div className="mt-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Total</span>
+                  <span className={cn(
+                    'font-bold text-lg',
+                    player.isAI ? 'text-foreground' : 'text-primary'
+                  )}>
+                    {score}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
