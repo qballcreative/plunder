@@ -20,6 +20,32 @@ import {
   MIN_SELL_EXPENSIVE,
 } from '@/types/game';
 
+// Pirate names for AI opponent
+const PIRATE_NAMES = [
+  "Blackbeard the Bold",
+  "Captain Crimson",
+  "Salty Pete",
+  "One-Eyed Jack",
+  "Stormy Sally",
+  "Red Rackham",
+  "Barnacle Bill",
+  "Dread Pirate Roberts",
+  "Captain Hook",
+  "Long John Silver",
+  "Anne Bonny",
+  "Calico Jack",
+  "Mad Dog Morgan",
+  "Ironbeard",
+  "The Sea Serpent",
+  "Captain Cutlass",
+  "Jolly Roger",
+  "Scurvy Sam",
+  "Treasure Tom",
+  "Davey Jones",
+];
+
+const getRandomPirateName = () => PIRATE_NAMES[Math.floor(Math.random() * PIRATE_NAMES.length)];
+
 // Utility functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -146,7 +172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   deck: [],
   tokenStacks: createTokenStacks(),
   bonusTokens: createBonusTokens(),
-  players: [createPlayer('1', 'Player'), createPlayer('2', 'Pirate AI', true)],
+  players: [createPlayer('1', 'Player'), createPlayer('2', getRandomPirateName(), true)],
   currentPlayerIndex: 0,
   round: 1,
   maxRounds: 3,
@@ -162,7 +188,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const market: Card[] = [];
     const players: [Player, Player] = [
       createPlayer('1', playerName),
-      createPlayer('2', 'Pirate AI', true),
+      createPlayer('2', getRandomPirateName(), true),
     ];
 
     // Deal initial market (3 ships + 2 from deck)
