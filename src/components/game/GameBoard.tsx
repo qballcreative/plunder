@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, calculateScore } from '@/store/gameStore';
 import { Market } from './Market';
@@ -6,6 +6,7 @@ import { PlayerHand } from './PlayerHand';
 import { TokenStack } from './TokenStack';
 import { BonusTokens } from './BonusTokens';
 import { ScoreBoard } from './ScoreBoard';
+import { ActionNotification } from './ActionNotification';
 import { Button } from '@/components/ui/button';
 import { GoodsType, Card } from '@/types/game';
 import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X } from 'lucide-react';
@@ -34,10 +35,20 @@ export const GameBoard = () => {
   } = useGameStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
+  const [showAction, setShowAction] = useState(false);
 
   const currentPlayer = players[currentPlayerIndex];
   const humanPlayer = players.find((p) => !p.isAI)!;
   const aiPlayer = players.find((p) => p.isAI)!;
+
+  // Show action notification when lastAction changes
+  useEffect(() => {
+    if (lastAction) {
+      setShowAction(true);
+      const timer = setTimeout(() => setShowAction(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastAction]);
 
   const handlePirateRaid = (card: Card) => {
     pirateRaid(card.id);
@@ -48,6 +59,9 @@ export const GameBoard = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 lg:p-6">
+      {/* Action Notification */}
+      <ActionNotification action={lastAction} show={showAction} />
+      
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.header
@@ -93,12 +107,12 @@ export const GameBoard = () => {
 
             {lastAction && (
               <motion.span
-                key={lastAction}
+                key={lastAction.description}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-sm text-muted-foreground px-3 py-1 bg-card rounded-full border border-border"
+                className="text-sm text-muted-foreground px-3 py-1 bg-card rounded-full border border-border hidden lg:block"
               >
-                {lastAction}
+                {lastAction.playerName} {lastAction.description}
               </motion.span>
             )}
             

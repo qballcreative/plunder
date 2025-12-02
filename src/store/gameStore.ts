@@ -10,6 +10,7 @@ import {
   Difficulty,
   OptionalRules,
   HiddenTreasure,
+  ActionDisplay,
   INITIAL_TOKEN_VALUES,
   BONUS_THREE_VALUES,
   BONUS_FOUR_VALUES,
@@ -279,7 +280,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       market: newMarket,
       deck: deck.slice(1),
       players: newPlayers,
-      lastAction: `${player.name} took a ${card.type}`,
+      lastAction: {
+        type: card.type === 'ships' ? 'take-ships' : 'take',
+        playerName: player.name,
+        description: `took a ${card.type}`,
+        cardsInvolved: [card],
+      },
     });
 
     get().endTurn();
@@ -305,7 +311,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       market: newMarket,
       deck: deck.slice(cardsNeeded),
       players: newPlayers,
-      lastAction: `${player.name} took ${ships.length} ships`,
+      lastAction: {
+        type: 'take-ships',
+        playerName: player.name,
+        description: `took ${ships.length} ship${ships.length > 1 ? 's' : ''}`,
+        cardsInvolved: ships,
+      },
     });
 
     get().endTurn();
@@ -353,7 +364,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       market: newMarket,
       players: newPlayers,
-      lastAction: `${player.name} exchanged ${marketCards.length} cards`,
+      lastAction: {
+        type: 'exchange',
+        playerName: player.name,
+        description: `exchanged ${marketCards.length} cards`,
+        cardsGiven: [...handCards, ...handShips],
+        cardsReceived: marketCards,
+      },
     });
 
     get().endTurn();
@@ -395,11 +412,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newPlayers = [...players] as [Player, Player];
     newPlayers[currentPlayerIndex] = { ...player, hand: newHand };
 
+    const tokensValue = tokens.reduce((sum, t) => sum + t.value, 0);
+    const bonusValue = bonus?.value || 0;
+
     set({
       players: newPlayers,
       tokenStacks: { ...tokenStacks },
       bonusTokens: { ...bonusTokens },
-      lastAction: `${player.name} sold ${cardsToSell.length} ${type}`,
+      lastAction: {
+        type: 'sell',
+        playerName: player.name,
+        description: `sold ${cardsToSell.length} ${type}`,
+        cardsInvolved: cardsToSell,
+        tokensEarned: tokensValue,
+        bonusEarned: bonusValue,
+      },
     });
 
     get().endTurn();
@@ -435,7 +462,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set({
       players: newPlayers,
-      lastAction: `${player.name} raided ${opponent.name}'s ${stolenCard.type}!`,
+      lastAction: {
+        type: 'raid',
+        playerName: player.name,
+        description: `raided ${opponent.name}'s ${stolenCard.type}!`,
+        cardsInvolved: [stolenCard],
+      },
     });
 
     get().endTurn();
@@ -480,7 +512,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Apply Storm Rule - every 3rd turn, discard 2 random market cards
     let newMarket = [...market];
     let newDeck = [...deck];
-    let stormMessage = '';
+    let stormAction: ActionDisplay | null = null;
     
     if (optionalRules.stormRule && newTurnCount % 3 === 0 && newMarket.length >= 2) {
       // Remove 2 random non-ship cards from market
@@ -494,17 +526,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newMarket = [...newMarket, ...newDeck.slice(0, cardsNeeded)];
       newDeck = newDeck.slice(cardsNeeded);
       
-      stormMessage = ` ⛈️ Storm washes away ${cardsToRemove.length} cards!`;
+      stormAction = {
+        type: 'storm',
+        playerName: 'Storm',
+        description: `washes away ${cardsToRemove.length} cards!`,
+        cardsInvolved: cardsToRemove,
+      };
     }
 
     const nextIndex = currentPlayerIndex === 0 ? 1 : 0;
+    const currentAction = get().lastAction;
     
     set({ 
       currentPlayerIndex: nextIndex, 
       turnCount: newTurnCount,
       market: newMarket,
       deck: newDeck,
-      lastAction: get().lastAction + stormMessage,
+      lastAction: stormAction || currentAction,
     });
 
     // If next player is AI, trigger AI move
