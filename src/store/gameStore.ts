@@ -289,18 +289,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { market, deck, players, currentPlayerIndex } = get();
     const player = players[currentPlayerIndex];
 
-    // Get cards to exchange
+    // Get cards to exchange (from both hand and ships)
     const handCards = player.hand.filter((c) => handCardIds.includes(c.id));
+    const handShips = player.ships.filter((c) => handCardIds.includes(c.id));
     const marketCards = market.filter((c) => marketCardIds.includes(c.id));
 
-    // Validate exchange
-    if (handCards.length !== marketCards.length) return;
-    if (handCards.length < 2) return;
-
-    // Check if any ships are involved
-    const handShips = player.ships.filter((c) => handCardIds.includes(c.id));
+    // Validate exchange - total cards from hand + ships must match market cards
     const totalFromHand = handCards.length + handShips.length;
     if (totalFromHand !== marketCards.length) return;
+    if (totalFromHand < 2) return;
 
     // Perform exchange
     const newHand = player.hand.filter((c) => !handCardIds.includes(c.id));
@@ -317,6 +314,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newMarket = [
       ...market.filter((c) => !marketCardIds.includes(c.id)),
       ...handCards,
+      ...handShips,
     ];
 
     const newPlayers = [...players] as [Player, Player];
