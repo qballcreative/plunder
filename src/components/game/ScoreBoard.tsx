@@ -52,12 +52,19 @@ export const ScoreBoard = () => {
               transition={{ delay: index * 0.1 }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className={cn(
-                  'font-bold',
-                  player.isAI ? 'text-foreground' : 'text-primary'
-                )}>
-                  {player.name}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    'font-bold',
+                    player.isAI ? 'text-foreground' : 'text-primary'
+                  )}>
+                    {player.name}
+                  </span>
+                  {player.isAI && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded">
+                      AI
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: roundWins[index] }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-primary fill-primary" />
