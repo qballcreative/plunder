@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, calculateScore } from '@/store/gameStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useGameAudio } from '@/hooks/useGameAudio';
 import { Market } from './Market';
 import { PlayerHand } from './PlayerHand';
 import { TokenStack } from './TokenStack';
 import { BonusTokens } from './BonusTokens';
 import { ScoreBoard } from './ScoreBoard';
 import { ActionNotification } from './ActionNotification';
+import { SettingsPanel } from './SettingsPanel';
 import { Button } from '@/components/ui/button';
 import { GoodsType, Card } from '@/types/game';
 import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X } from 'lucide-react';
@@ -34,21 +37,57 @@ export const GameBoard = () => {
     hiddenTreasures,
   } = useGameStore();
 
+  const { actionNotificationDuration } = useSettingsStore();
+  const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
+
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
+  const [prevPhase, setPrevPhase] = useState(phase);
 
   const currentPlayer = players[currentPlayerIndex];
   const humanPlayer = players.find((p) => !p.isAI)!;
   const aiPlayer = players.find((p) => p.isAI)!;
 
-  // Show action notification when lastAction changes
+  // Start background music when game starts
+  useEffect(() => {
+    if (phase === 'playing') {
+      playMusic();
+    } else if (phase === 'lobby') {
+      stopMusic();
+    }
+  }, [phase, playMusic, stopMusic]);
+
+  // Play sounds for phase changes
+  useEffect(() => {
+    if (prevPhase !== phase) {
+      if (phase === 'roundEnd') {
+        const winner = getRoundWinner();
+        if (winner && !winner.isAI) {
+          playSound('round-win');
+        } else if (winner) {
+          playSound('round-lose');
+        }
+      } else if (phase === 'gameEnd') {
+        const winner = getWinner();
+        if (winner && !winner.isAI) {
+          playSound('game-win');
+        } else if (winner) {
+          playSound('game-lose');
+        }
+      }
+      setPrevPhase(phase);
+    }
+  }, [phase, prevPhase, getRoundWinner, getWinner, playSound]);
+
+  // Show action notification when lastAction changes and play sound
   useEffect(() => {
     if (lastAction) {
       setShowAction(true);
-      const timer = setTimeout(() => setShowAction(false), 3000);
+      playActionSound(lastAction.type);
+      const timer = setTimeout(() => setShowAction(false), actionNotificationDuration * 1000);
       return () => clearTimeout(timer);
     }
-  }, [lastAction]);
+  }, [lastAction, actionNotificationDuration, playActionSound]);
 
   const handlePirateRaid = (card: Card) => {
     pirateRaid(card.id);
@@ -115,6 +154,8 @@ export const GameBoard = () => {
                 {lastAction.playerName} {lastAction.description}
               </motion.span>
             )}
+            
+            <SettingsPanel />
             
             <Button
               variant="ghost"

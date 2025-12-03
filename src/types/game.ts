@@ -76,6 +76,7 @@ export interface GameState {
   optionalRules: OptionalRules;
   turnCount: number; // For storm rule
   hiddenTreasures: HiddenTreasure[]; // For treasure chest rule
+  isMultiplayer: boolean; // For multiplayer mode
 }
 
 // Token values based on Jaipur rules

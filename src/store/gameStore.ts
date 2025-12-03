@@ -141,6 +141,7 @@ const defaultOptionalRules: OptionalRules = {
 interface GameStore extends GameState {
   // Actions
   startGame: (playerName: string, difficulty: Difficulty, optionalRules?: OptionalRules) => void;
+  startMultiplayerGame: (playerName: string, opponentName: string, optionalRules: OptionalRules, isHost: boolean) => void;
   takeCard: (cardId: string) => void;
   takeAllShips: () => void;
   exchangeCards: (handCardIds: string[], marketCardIds: string[]) => void;
@@ -183,6 +184,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   optionalRules: defaultOptionalRules,
   turnCount: 0,
   hiddenTreasures: [],
+  isMultiplayer: false,
 
   startGame: (playerName, difficulty, optionalRules = defaultOptionalRules) => {
     const deck = createDeck();
@@ -248,6 +250,73 @@ export const useGameStore = create<GameStore>((set, get) => ({
       optionalRules,
       turnCount: 0,
       hiddenTreasures,
+      isMultiplayer: false,
+    });
+  },
+
+  startMultiplayerGame: (playerName, opponentName, optionalRules, isHost) => {
+    const deck = createDeck();
+    const market: Card[] = [];
+    const players: [Player, Player] = [
+      createPlayer('1', isHost ? playerName : opponentName, !isHost),
+      createPlayer('2', isHost ? opponentName : playerName, isHost),
+    ];
+
+    // For multiplayer, player index 0 is always the local player's view
+    // Re-arrange so local player is always first
+    const localPlayer = createPlayer('1', playerName, false);
+    const remotePlayer = createPlayer('2', opponentName, false);
+    players[0] = localPlayer;
+    players[1] = remotePlayer;
+
+    // Deal initial market (3 ships + 2 from deck)
+    let shipCount = 0;
+    const remainingDeck: Card[] = [];
+    
+    for (const card of deck) {
+      if (shipCount < 3 && card.type === 'ships') {
+        market.push(card);
+        shipCount++;
+      } else {
+        remainingDeck.push(card);
+      }
+    }
+    market.push(...remainingDeck.splice(0, 2));
+
+    // Deal 5 cards to each player
+    for (let i = 0; i < 5; i++) {
+      const card1 = remainingDeck.shift();
+      const card2 = remainingDeck.shift();
+      if (card1) {
+        if (card1.type === 'ships') players[0].ships.push(card1);
+        else players[0].hand.push(card1);
+      }
+      if (card2) {
+        if (card2.type === 'ships') players[1].ships.push(card2);
+        else players[1].hand.push(card2);
+      }
+    }
+
+    const hiddenTreasures = optionalRules.treasureChest 
+      ? createHiddenTreasures(players.map(p => p.id))
+      : [];
+
+    set({
+      phase: 'playing',
+      deck: remainingDeck,
+      market,
+      players,
+      tokenStacks: createTokenStacks(),
+      bonusTokens: createBonusTokens(),
+      currentPlayerIndex: isHost ? 0 : 1,
+      round: 1,
+      roundWins: [0, 0],
+      lastAction: null,
+      difficulty: 'medium',
+      optionalRules,
+      turnCount: 0,
+      hiddenTreasures,
+      isMultiplayer: true,
     });
   },
 
@@ -536,6 +605,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const nextIndex = currentPlayerIndex === 0 ? 1 : 0;
     const currentAction = get().lastAction;
+    const { isMultiplayer } = get();
     
     set({ 
       currentPlayerIndex: nextIndex, 
@@ -545,8 +615,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastAction: stormAction || currentAction,
     });
 
-    // If next player is AI, trigger AI move
-    if (players[nextIndex].isAI) {
+    // If next player is AI and not multiplayer, trigger AI move
+    if (players[nextIndex].isAI && !isMultiplayer) {
       setTimeout(() => get().makeAIMove(), 1000);
     }
   },
@@ -635,6 +705,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       optionalRules: defaultOptionalRules,
       turnCount: 0,
       hiddenTreasures: [],
+      isMultiplayer: false,
     });
   },
 
