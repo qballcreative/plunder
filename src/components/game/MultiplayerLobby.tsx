@@ -33,20 +33,23 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
     onMessage,
   } = useMultiplayerStore();
   
-  const { startMultiplayerGame } = useGameStore();
+  const { startMultiplayerGame, applyGameState, getSerializableState } = useGameStore();
 
   // Listen for start message from host (when we're the guest)
   useEffect(() => {
-    if (state === 'connected' && !isHost) {
-      onMessage((message) => {
+    if (state === 'connected') {
+      const unsubscribe = onMessage((message) => {
+        console.log('Lobby received message:', message.type);
         if (message.type === 'start') {
-          const payload = message.payload as { optionalRules: OptionalRules };
-          // Guest starts the game when host sends start message
-          startMultiplayerGame(playerName || 'Captain', opponentName || 'Host', payload.optionalRules, false);
+          const payload = message.payload as { optionalRules: OptionalRules; gameState: any };
+          console.log('Guest received start with game state');
+          // Guest applies the game state from host (with player swap)
+          applyGameState(payload.gameState, true);
         }
       });
+      return unsubscribe;
     }
-  }, [state, isHost, playerName, opponentName, startMultiplayerGame, onMessage]);
+  }, [state, applyGameState, onMessage]);
 
   const handleHost = async () => {
     setMode('host');
@@ -80,8 +83,15 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
   };
 
   const handleStartGame = () => {
-    sendMessage({ type: 'start', payload: { optionalRules } });
+    // Host generates the game state
     startMultiplayerGame(playerName || 'Captain', opponentName || 'Opponent', optionalRules, true);
+    
+    // Small delay to ensure state is set, then send to guest
+    setTimeout(() => {
+      const gameState = getSerializableState();
+      console.log('Host sending game state to guest');
+      sendMessage({ type: 'start', payload: { optionalRules, gameState } });
+    }, 100);
   };
 
   const handleBack = () => {

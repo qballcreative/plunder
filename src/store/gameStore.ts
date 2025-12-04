@@ -142,6 +142,8 @@ interface GameStore extends GameState {
   // Actions
   startGame: (playerName: string, difficulty: Difficulty, optionalRules?: OptionalRules) => void;
   startMultiplayerGame: (playerName: string, opponentName: string, optionalRules: OptionalRules, isHost: boolean) => void;
+  applyGameState: (state: Partial<GameState>, swapPlayers?: boolean) => void;
+  getSerializableState: () => Partial<GameState>;
   takeCard: (cardId: string) => void;
   takeAllShips: () => void;
   exchangeCards: (handCardIds: string[], marketCardIds: string[]) => void;
@@ -255,19 +257,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startMultiplayerGame: (playerName, opponentName, optionalRules, isHost) => {
+    // Only the host generates the game state
+    if (!isHost) {
+      // Guest waits for state from host
+      return;
+    }
+
     const deck = createDeck();
     const market: Card[] = [];
-    const players: [Player, Player] = [
-      createPlayer('1', isHost ? playerName : opponentName, !isHost),
-      createPlayer('2', isHost ? opponentName : playerName, isHost),
-    ];
-
-    // For multiplayer, player index 0 is always the local player's view
-    // Re-arrange so local player is always first
-    const localPlayer = createPlayer('1', playerName, false);
-    const remotePlayer = createPlayer('2', opponentName, false);
-    players[0] = localPlayer;
-    players[1] = remotePlayer;
+    
+    // Host is player 0, guest is player 1
+    const hostPlayer = createPlayer('1', playerName, false);
+    const guestPlayer = createPlayer('2', opponentName, false);
+    const players: [Player, Player] = [hostPlayer, guestPlayer];
 
     // Deal initial market (3 ships + 2 from deck)
     let shipCount = 0;
@@ -308,7 +310,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players,
       tokenStacks: createTokenStacks(),
       bonusTokens: createBonusTokens(),
-      currentPlayerIndex: isHost ? 0 : 1,
+      currentPlayerIndex: 0, // Host always starts
       round: 1,
       roundWins: [0, 0],
       lastAction: null,
@@ -318,6 +320,45 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hiddenTreasures,
       isMultiplayer: true,
     });
+  },
+
+  // Apply game state received from network (for multiplayer sync)
+  applyGameState: (state, swapPlayers = false) => {
+    if (swapPlayers && state.players) {
+      // Swap player order for guest's perspective
+      const [player1, player2] = state.players;
+      state.players = [player2, player1];
+      // Invert current player index for guest
+      if (state.currentPlayerIndex !== undefined) {
+        state.currentPlayerIndex = state.currentPlayerIndex === 0 ? 1 : 0;
+      }
+      // Swap round wins too
+      if (state.roundWins) {
+        state.roundWins = [state.roundWins[1], state.roundWins[0]];
+      }
+    }
+    set(state as GameState);
+  },
+
+  // Get serializable state to send over network
+  getSerializableState: () => {
+    const state = get();
+    return {
+      phase: state.phase,
+      market: state.market,
+      deck: state.deck,
+      tokenStacks: state.tokenStacks,
+      bonusTokens: state.bonusTokens,
+      players: state.players,
+      currentPlayerIndex: state.currentPlayerIndex,
+      round: state.round,
+      roundWins: state.roundWins,
+      lastAction: state.lastAction,
+      optionalRules: state.optionalRules,
+      turnCount: state.turnCount,
+      hiddenTreasures: state.hiddenTreasures,
+      isMultiplayer: state.isMultiplayer,
+    };
   },
 
   takeCard: (cardId) => {

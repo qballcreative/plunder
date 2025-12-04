@@ -39,11 +39,13 @@ export const GameBoard = () => {
     pirateRaid,
     hiddenTreasures,
     isMultiplayer,
+    applyGameState,
+    getSerializableState,
   } = useGameStore();
 
   const { actionNotificationDuration } = useSettingsStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
-  const { sendMessage, opponentName, isHost } = useMultiplayerStore();
+  const { sendMessage, opponentName, isHost, onMessage: registerMessageHandler } = useMultiplayerStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
@@ -104,18 +106,39 @@ export const GameBoard = () => {
     }
   }, [lastAction, actionNotificationDuration, playActionSound]);
 
-  // Listen for multiplayer chat messages
+  // Listen for multiplayer messages (chat and game state sync)
   useEffect(() => {
-    if (isMultiplayer) {
-      const { onMessage } = useMultiplayerStore.getState();
-      onMessage((message) => {
+    if (isMultiplayer && phase === 'playing') {
+      const unsubscribe = registerMessageHandler((message) => {
+        console.log('GameBoard received message:', message.type);
         if (message.type === 'chat' && (message.payload as { text?: string }).text) {
           const payload = message.payload as { text: string; sender: string };
           setChatMessages((prev) => [...prev, { sender: payload.sender, text: payload.text }]);
+        } else if (message.type === 'game-state') {
+          // Receive game state update from opponent (swap players for our perspective)
+          const payload = message.payload as { gameState: any };
+          console.log('Received game state sync from opponent');
+          applyGameState(payload.gameState, true);
         }
       });
+      return unsubscribe;
     }
-  }, [isMultiplayer]);
+  }, [isMultiplayer, phase, applyGameState, registerMessageHandler]);
+
+  // Sync game state after each action in multiplayer
+  const prevLastActionRef = useRef(lastAction);
+  useEffect(() => {
+    if (isMultiplayer && phase === 'playing' && lastAction && lastAction !== prevLastActionRef.current) {
+      // Only sync if it was our turn (currentPlayerIndex was 0 before action completed)
+      // After the action, currentPlayerIndex switches, so if it's now 1, we just made a move
+      if (currentPlayerIndex === 1) {
+        console.log('Sending game state sync to opponent');
+        const gameState = getSerializableState();
+        sendMessage({ type: 'game-state', payload: { gameState } });
+      }
+      prevLastActionRef.current = lastAction;
+    }
+  }, [isMultiplayer, phase, lastAction, currentPlayerIndex, sendMessage, getSerializableState]);
 
   // Auto-scroll chat
   useEffect(() => {
