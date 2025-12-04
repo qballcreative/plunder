@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, calculateScore } from '@/store/gameStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useGameAudio } from '@/hooks/useGameAudio';
+import { useMultiplayerStore } from '@/store/multiplayerStore';
 import { Market } from './Market';
 import { PlayerHand } from './PlayerHand';
 import { TokenStack } from './TokenStack';
@@ -11,8 +12,10 @@ import { ScoreBoard } from './ScoreBoard';
 import { ActionNotification } from './ActionNotification';
 import { SettingsPanel } from './SettingsPanel';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoodsType, Card } from '@/types/game';
-import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const GOODS_ORDER: GoodsType[] = ['gemstones', 'gold', 'silver', 'silks', 'cannonballs', 'rum'];
@@ -35,18 +38,30 @@ export const GameBoard = () => {
     canUsePirateRaid,
     pirateRaid,
     hiddenTreasures,
+    isMultiplayer,
   } = useGameStore();
 
   const { actionNotificationDuration } = useSettingsStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
+  const { sendMessage, opponentName, isHost } = useMultiplayerStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
   const [prevPhase, setPrevPhase] = useState(phase);
+  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string }[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [showChat, setShowChat] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players[currentPlayerIndex];
-  const humanPlayer = players.find((p) => !p.isAI)!;
-  const aiPlayer = players.find((p) => p.isAI)!;
+  
+  // In multiplayer, use player indices; in single player, find AI/human
+  const localPlayer = isMultiplayer ? players[0] : players.find((p) => !p.isAI)!;
+  const opponentPlayer = isMultiplayer ? players[1] : players.find((p) => p.isAI);
+  
+  // For backwards compatibility with existing code
+  const humanPlayer = localPlayer;
+  const aiPlayer = opponentPlayer;
 
   // Start background music when game starts
   useEffect(() => {
@@ -88,6 +103,34 @@ export const GameBoard = () => {
       return () => clearTimeout(timer);
     }
   }, [lastAction, actionNotificationDuration, playActionSound]);
+
+  // Listen for multiplayer chat messages
+  useEffect(() => {
+    if (isMultiplayer) {
+      const { onMessage } = useMultiplayerStore.getState();
+      onMessage((message) => {
+        if (message.type === 'chat' && (message.payload as { text?: string }).text) {
+          const payload = message.payload as { text: string; sender: string };
+          setChatMessages((prev) => [...prev, { sender: payload.sender, text: payload.text }]);
+        }
+      });
+    }
+  }, [isMultiplayer]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  const sendChatMessage = () => {
+    if (!chatInput.trim()) return;
+    const message = { sender: localPlayer?.name || 'You', text: chatInput.trim() };
+    setChatMessages((prev) => [...prev, message]);
+    sendMessage({ type: 'chat', payload: message });
+    setChatInput('');
+  };
 
   const handlePirateRaid = (card: Card) => {
     pirateRaid(card.id);
@@ -249,26 +292,30 @@ export const GameBoard = () => {
             transition={{ delay: 0.3 }}
           >
             {/* Opponent's hand */}
-            <PlayerHand
-              player={aiPlayer}
-              isCurrentPlayer={currentPlayerIndex === 1}
-              isOpponent
-              isRaidMode={isRaidMode && currentPlayerIndex === 0}
-              onRaidCard={handlePirateRaid}
-            />
+            {opponentPlayer && (
+              <PlayerHand
+                player={opponentPlayer}
+                isCurrentPlayer={currentPlayerIndex === 1}
+                isOpponent
+                isRaidMode={isRaidMode && currentPlayerIndex === 0}
+                onRaidCard={handlePirateRaid}
+              />
+            )}
 
             {/* Market */}
             <Market />
 
             {/* Player's hand */}
-            <PlayerHand
-              player={humanPlayer}
-              isCurrentPlayer={currentPlayerIndex === 0}
-            />
+            {humanPlayer && (
+              <PlayerHand
+                player={humanPlayer}
+                isCurrentPlayer={currentPlayerIndex === 0}
+              />
+            )}
 
             {/* Turn indicator */}
             <AnimatePresence>
-              {currentPlayer.isAI && phase === 'playing' && (
+              {currentPlayer?.isAI && phase === 'playing' && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -303,6 +350,67 @@ export const GameBoard = () => {
             <ScoreBoard />
           </motion.aside>
         </div>
+
+        {/* Multiplayer Chat */}
+        {isMultiplayer && (
+          <div className="fixed bottom-4 right-4 z-40">
+            {showChat ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="w-80 bg-card border border-primary/30 rounded-xl shadow-xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between p-3 bg-primary/10 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-primary" />
+                    <span className="font-pirate text-primary">Chat</span>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setShowChat(false)} className="h-6 w-6">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <ScrollArea className="h-48 p-3" ref={chatScrollRef}>
+                  <div className="space-y-2">
+                    {chatMessages.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center">No messages yet</p>
+                    )}
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={cn(
+                        'text-sm p-2 rounded-lg max-w-[85%]',
+                        msg.sender === localPlayer?.name 
+                          ? 'bg-primary/20 ml-auto' 
+                          : 'bg-muted'
+                      )}>
+                        <p className="text-xs font-bold text-primary/80">{msg.sender}</p>
+                        <p className="text-foreground">{msg.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <div className="p-2 border-t border-border flex gap-2">
+                  <Input
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+                  />
+                  <Button size="icon" onClick={sendChatMessage} className="shrink-0">
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              <Button
+                onClick={() => setShowChat(true)}
+                className="rounded-full h-12 w-12 bg-primary hover:bg-primary/90 shadow-lg"
+              >
+                <MessageCircle className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Round End Modal */}
         <AnimatePresence>
