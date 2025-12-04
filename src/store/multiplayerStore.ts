@@ -24,11 +24,15 @@ interface MultiplayerStore {
   sendMessage: (message: GameMessage) => void;
   disconnect: () => void;
   setOpponentName: (name: string) => void;
-  onMessage: (callback: (message: GameMessage) => void) => void;
+  onMessage: (callback: (message: GameMessage) => void) => () => void;
   reset: () => void;
 }
 
-let messageCallback: ((message: GameMessage) => void) | null = null;
+const messageCallbacks: Set<(message: GameMessage) => void> = new Set();
+
+const notifyListeners = (message: GameMessage) => {
+  messageCallbacks.forEach((callback) => callback(message));
+};
 
 export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   state: 'idle',
@@ -65,9 +69,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
             if (message.type === 'chat' && (message.payload as { name?: string }).name) {
               set({ opponentName: (message.payload as { name: string }).name });
             }
-            if (messageCallback) {
-              messageCallback(message);
-            }
+            notifyListeners(message);
           });
           
           conn.on('close', () => {
@@ -117,9 +119,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           if (message.type === 'chat' && (message.payload as { name?: string }).name) {
             set({ opponentName: (message.payload as { name: string }).name });
           }
-          if (messageCallback) {
-            messageCallback(message);
-          }
+          notifyListeners(message);
         });
         
         conn.on('close', () => {
@@ -167,12 +167,16 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   },
 
   onMessage: (callback: (message: GameMessage) => void) => {
-    messageCallback = callback;
+    messageCallbacks.add(callback);
+    // Return unsubscribe function
+    return () => {
+      messageCallbacks.delete(callback);
+    };
   },
 
   reset: () => {
     const { disconnect } = get();
     disconnect();
-    messageCallback = null;
+    messageCallbacks.clear();
   },
 }));
