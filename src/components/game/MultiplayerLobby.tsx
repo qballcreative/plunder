@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMultiplayerStore } from '@/store/multiplayerStore';
 import { useGameStore } from '@/store/gameStore';
@@ -25,13 +25,28 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
     peerId, 
     opponentName, 
     error,
+    isHost,
     hostGame, 
     joinGame, 
     sendMessage,
-    disconnect 
+    disconnect,
+    onMessage,
   } = useMultiplayerStore();
   
   const { startMultiplayerGame } = useGameStore();
+
+  // Listen for start message from host (when we're the guest)
+  useEffect(() => {
+    if (state === 'connected' && !isHost) {
+      onMessage((message) => {
+        if (message.type === 'start') {
+          const payload = message.payload as { optionalRules: OptionalRules };
+          // Guest starts the game when host sends start message
+          startMultiplayerGame(playerName || 'Captain', opponentName || 'Host', payload.optionalRules, false);
+        }
+      });
+    }
+  }, [state, isHost, playerName, opponentName, startMultiplayerGame, onMessage]);
 
   const handleHost = async () => {
     setMode('host');
