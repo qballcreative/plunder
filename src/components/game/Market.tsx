@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '@/types/game';
+import { Card, HAND_LIMIT } from '@/types/game';
 import { GameCard } from './GameCard';
 import { Button } from '@/components/ui/button';
 import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
-import { Anchor, ArrowLeftRight, Hand } from 'lucide-react';
+import { Anchor, ArrowLeftRight, Hand, AlertTriangle } from 'lucide-react';
 
 export const Market = () => {
   const { 
@@ -48,9 +48,20 @@ export const Market = () => {
     }
   };
 
+  // Calculate if exchange would exceed hand limit
+  const getExchangeHandSize = () => {
+    const handCardsSelected = currentPlayer.hand.filter(c => selectedHandCards.includes(c.id)).length;
+    const nonShipMarketCardsSelected = market
+      .filter(c => selectedMarketCards.includes(c.id) && c.type !== 'ships').length;
+    return currentPlayer.hand.length - handCardsSelected + nonShipMarketCardsSelected;
+  };
+
+  const wouldExceedHandLimit = getExchangeHandSize() > HAND_LIMIT;
+
   const handleExchange = () => {
     if (selectedMarketCards.length >= 2 && 
-        selectedMarketCards.length === selectedHandCards.length) {
+        selectedMarketCards.length === selectedHandCards.length &&
+        !wouldExceedHandLimit) {
       exchangeCards(selectedHandCards, selectedMarketCards);
       setSelectedMarketCards([]);
       setSelectedHandCards([]);
@@ -167,6 +178,13 @@ export const Market = () => {
             Select cards from your hand to exchange ({selectedHandCards.length}/{selectedMarketCards.length})
           </p>
           
+          {wouldExceedHandLimit && selectedMarketCards.length > 0 && (
+            <div className="flex items-center gap-2 text-destructive text-sm mb-3 p-2 bg-destructive/10 rounded">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Exchange would exceed hand limit of {HAND_LIMIT} cards. Select more cards from your hand or ships.</span>
+            </div>
+          )}
+          
           <div className="flex flex-wrap gap-2 justify-center">
             {currentPlayer.hand.map((card) => (
               <GameCard
@@ -194,7 +212,8 @@ export const Market = () => {
             <Button
               onClick={handleExchange}
               disabled={selectedMarketCards.length < 2 || 
-                       selectedHandCards.length !== selectedMarketCards.length}
+                       selectedHandCards.length !== selectedMarketCards.length ||
+                       wouldExceedHandLimit}
               className="ocean-button"
               size="sm"
             >

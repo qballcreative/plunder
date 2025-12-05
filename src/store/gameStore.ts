@@ -446,6 +446,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (totalFromHand !== marketCards.length) return;
     if (totalFromHand < 2) return;
 
+    // Calculate resulting hand size (ships don't count toward hand limit)
+    const nonShipMarketCards = marketCards.filter((c) => c.type !== 'ships').length;
+    const newHandSize = player.hand.length - handCards.length + nonShipMarketCards;
+    if (newHandSize > HAND_LIMIT) return;
+
     // Perform exchange
     const newHand = player.hand.filter((c) => !handCardIds.includes(c.id));
     const newShips = player.ships.filter((c) => !handCardIds.includes(c.id));
