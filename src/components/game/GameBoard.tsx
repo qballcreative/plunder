@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoodsType, Card } from '@/types/game';
-import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send, Users, Anchor, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const GOODS_ORDER: GoodsType[] = ['gemstones', 'gold', 'silver', 'silks', 'cannonballs', 'rum'];
@@ -45,7 +45,7 @@ export const GameBoard = () => {
 
   const { actionNotificationDuration } = useSettingsStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
-  const { sendMessage, opponentName, isHost, onMessage: registerMessageHandler } = useMultiplayerStore();
+  const { sendMessage, opponentName, isHost, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer } = useMultiplayerStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
@@ -53,6 +53,8 @@ export const GameBoard = () => {
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players[currentPlayerIndex];
@@ -106,24 +108,39 @@ export const GameBoard = () => {
     }
   }, [lastAction, actionNotificationDuration, playActionSound]);
 
+  // Detect multiplayer disconnect
+  useEffect(() => {
+    if (isMultiplayer && multiplayerState === 'disconnected' && phase === 'playing') {
+      setShowDisconnectModal(true);
+    }
+  }, [isMultiplayer, multiplayerState, phase]);
+
   // Listen for multiplayer messages (chat and game state sync)
   useEffect(() => {
-    if (isMultiplayer && phase === 'playing') {
+    if (isMultiplayer && (phase === 'playing' || phase === 'roundEnd')) {
       const unsubscribe = registerMessageHandler((message) => {
         console.log('GameBoard received message:', message.type);
         if (message.type === 'chat' && (message.payload as { text?: string }).text) {
           const payload = message.payload as { text: string; sender: string };
           setChatMessages((prev) => [...prev, { sender: payload.sender, text: payload.text }]);
+          // Play sound and increment unread if chat is closed
+          if (!showChat) {
+            playSound('message');
+            setUnreadMessages((prev) => prev + 1);
+          }
         } else if (message.type === 'game-state') {
           // Receive game state update from opponent (swap players for our perspective)
           const payload = message.payload as { gameState: any };
           console.log('Received game state sync from opponent');
           applyGameState(payload.gameState, true);
+        } else if (message.type === 'next-round') {
+          // Host triggered next round, sync it
+          nextRound();
         }
       });
       return unsubscribe;
     }
-  }, [isMultiplayer, phase, applyGameState, registerMessageHandler]);
+  }, [isMultiplayer, phase, applyGameState, registerMessageHandler, showChat, playSound, nextRound]);
 
   // Sync game state after each action in multiplayer
   const prevLastActionRef = useRef(lastAction);
@@ -338,7 +355,7 @@ export const GameBoard = () => {
 
             {/* Turn indicator */}
             <AnimatePresence>
-              {currentPlayer?.isAI && phase === 'playing' && (
+              {currentPlayerIndex === 1 && phase === 'playing' && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -351,10 +368,16 @@ export const GameBoard = () => {
                         animate={{ rotate: 360 }}
                         transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
                       >
-                        <Swords className="w-6 h-6 text-primary" />
+                        {isMultiplayer ? (
+                          <Anchor className="w-6 h-6 text-primary" />
+                        ) : (
+                          <Swords className="w-6 h-6 text-primary" />
+                        )}
                       </motion.div>
                       <span className="font-pirate text-xl text-primary">
-                        Pirate AI is thinking...
+                        {isMultiplayer 
+                          ? `Waiting for ${opponentName || 'opponent'}...` 
+                          : 'Pirate AI is thinking...'}
                       </span>
                     </div>
                   </div>
@@ -426,14 +449,60 @@ export const GameBoard = () => {
               </motion.div>
             ) : (
               <Button
-                onClick={() => setShowChat(true)}
-                className="rounded-full h-12 w-12 bg-primary hover:bg-primary/90 shadow-lg"
+                onClick={() => {
+                  setShowChat(true);
+                  setUnreadMessages(0);
+                }}
+                className="rounded-full h-12 w-12 bg-primary hover:bg-primary/90 shadow-lg relative"
               >
                 <MessageCircle className="w-5 h-5" />
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
               </Button>
             )}
           </div>
         )}
+
+        {/* Disconnect Modal */}
+        <AnimatePresence>
+          {showDisconnectModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-card p-8 rounded-2xl border border-destructive/30 shadow-2xl max-w-md w-full text-center"
+              >
+                <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <h2 className="font-pirate text-2xl text-destructive mb-2">
+                  Connection Lost
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Your opponent has disconnected from the game.
+                </p>
+                <Button 
+                  onClick={() => {
+                    setShowDisconnectModal(false);
+                    resetMultiplayer();
+                    resetGame();
+                  }} 
+                  className="game-button w-full"
+                >
+                  <Home className="w-5 h-5 mr-2" />
+                  Return to Lobby
+                </Button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Round End Modal */}
         <AnimatePresence>
@@ -505,9 +574,20 @@ export const GameBoard = () => {
                     ))}
                   </div>
 
-                  <Button onClick={nextRound} className="game-button w-full">
+                  <Button 
+                    onClick={() => {
+                      if (isMultiplayer && isHost) {
+                        sendMessage({ type: 'next-round', payload: {} });
+                      }
+                      nextRound();
+                    }} 
+                    className="game-button w-full"
+                    disabled={isMultiplayer && !isHost}
+                  >
                     <RotateCcw className="w-5 h-5 mr-2" />
-                    {round >= 3 ? 'See Final Results' : `Start Round ${round + 1}`}
+                    {isMultiplayer && !isHost 
+                      ? 'Waiting for host...' 
+                      : round >= 3 ? 'See Final Results' : `Start Round ${round + 1}`}
                   </Button>
                 </div>
               </motion.div>
