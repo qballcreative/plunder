@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import Peer, { DataConnection } from 'peerjs';
 
-export type MultiplayerState = 'idle' | 'hosting' | 'joining' | 'connected' | 'error';
+export type MultiplayerState = 'idle' | 'hosting' | 'joining' | 'connected' | 'disconnected' | 'error';
 
 interface GameMessage {
-  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start';
+  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start' | 'next-round';
   payload: unknown;
 }
 
@@ -73,7 +73,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           });
           
           conn.on('close', () => {
-            set({ state: 'idle', connection: null, opponentName: null });
+            set({ state: 'disconnected', connection: null });
           });
           
           conn.on('error', (err) => {
@@ -87,6 +87,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       peer.on('error', (err) => {
         set({ error: err.message, state: 'error' });
         reject(err);
+      });
+      
+      peer.on('disconnected', () => {
+        set({ state: 'disconnected' });
       });
     });
   },
@@ -123,7 +127,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         });
         
         conn.on('close', () => {
-          set({ state: 'idle', connection: null, opponentName: null });
+          set({ state: 'disconnected', connection: null });
         });
         
         conn.on('error', (err) => {
@@ -135,6 +139,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       peer.on('error', (err) => {
         set({ error: err.message, state: 'error' });
         reject(err);
+      });
+      
+      peer.on('disconnected', () => {
+        set({ state: 'disconnected' });
       });
     });
   },
