@@ -45,7 +45,7 @@ export const GameBoard = () => {
 
   const { actionNotificationDuration } = useSettingsStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
-  const { sendMessage, opponentName, isHost, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer } = useMultiplayerStore();
+  const { sendMessage, opponentName, isHost, hostId, peerId, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer, reconnect } = useMultiplayerStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
@@ -55,6 +55,7 @@ export const GameBoard = () => {
   const [showChat, setShowChat] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players[currentPlayerIndex];
@@ -488,17 +489,55 @@ export const GameBoard = () => {
                 <p className="text-muted-foreground mb-6">
                   Your opponent has disconnected from the game.
                 </p>
-                <Button 
-                  onClick={() => {
-                    setShowDisconnectModal(false);
-                    resetMultiplayer();
-                    resetGame();
-                  }} 
-                  className="game-button w-full"
-                >
-                  <Home className="w-5 h-5 mr-2" />
-                  Return to Lobby
-                </Button>
+                <div className="space-y-3">
+                  <Button 
+                    onClick={async () => {
+                      const gameCode = isHost ? peerId : hostId;
+                      if (gameCode) {
+                        setIsReconnecting(true);
+                        try {
+                          await reconnect(gameCode, localPlayer?.name || 'Player');
+                          setShowDisconnectModal(false);
+                        } catch (err) {
+                          console.error('Reconnect failed:', err);
+                        } finally {
+                          setIsReconnecting(false);
+                        }
+                      }
+                    }}
+                    disabled={isReconnecting || (!hostId && !isHost)}
+                    className="game-button w-full"
+                  >
+                    {isReconnecting ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                        >
+                          <RotateCcw className="w-5 h-5 mr-2" />
+                        </motion.div>
+                        Reconnecting...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="w-5 h-5 mr-2" />
+                        Attempt Reconnect
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setShowDisconnectModal(false);
+                      resetMultiplayer();
+                      resetGame();
+                    }} 
+                    className="w-full"
+                  >
+                    <Home className="w-5 h-5 mr-2" />
+                    Return to Lobby
+                  </Button>
+                </div>
               </motion.div>
             </motion.div>
           )}

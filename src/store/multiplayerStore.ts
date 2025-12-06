@@ -21,6 +21,7 @@ interface MultiplayerStore {
   // Actions
   hostGame: (playerName: string) => Promise<string>;
   joinGame: (hostId: string, playerName: string) => Promise<void>;
+  reconnect: (gameCode: string, playerName: string) => Promise<void>;
   sendMessage: (message: GameMessage) => void;
   disconnect: () => void;
   setOpponentName: (name: string) => void;
@@ -145,6 +146,24 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         set({ state: 'disconnected' });
       });
     });
+  },
+
+  reconnect: async (gameCode: string, playerName: string): Promise<void> => {
+    const { peer, connection, isHost } = get();
+    
+    // Clean up existing connection
+    connection?.close();
+    peer?.destroy();
+    
+    // If host, re-host with same ID isn't possible with PeerJS, so just rejoin as guest
+    // If guest, attempt to rejoin the host
+    if (isHost) {
+      // Host needs to create a new session - the guest will need to rejoin
+      await get().hostGame(playerName);
+      return;
+    } else {
+      return get().joinGame(gameCode, playerName);
+    }
   },
 
   sendMessage: (message: GameMessage) => {
