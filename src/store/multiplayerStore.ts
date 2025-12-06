@@ -3,8 +3,8 @@ import Peer, { DataConnection } from 'peerjs';
 
 export type MultiplayerState = 'idle' | 'hosting' | 'joining' | 'connected' | 'disconnected' | 'error';
 
-interface GameMessage {
-  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start' | 'next-round';
+export interface GameMessage {
+  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start' | 'next-round' | 'ping' | 'pong';
   payload: unknown;
 }
 
@@ -17,12 +17,19 @@ interface MultiplayerStore {
   isHost: boolean;
   opponentName: string | null;
   error: string | null;
+  latency: number | null;
+  lastPingTime: number | null;
+  heartbeatInterval: ReturnType<typeof setInterval> | null;
+  missedPings: number;
   
   // Actions
   hostGame: (playerName: string) => Promise<string>;
   joinGame: (hostId: string, playerName: string) => Promise<void>;
   reconnect: (gameCode: string, playerName: string) => Promise<void>;
   sendMessage: (message: GameMessage) => void;
+  sendPing: () => void;
+  startHeartbeat: () => void;
+  stopHeartbeat: () => void;
   disconnect: () => void;
   setOpponentName: (name: string) => void;
   onMessage: (callback: (message: GameMessage) => void) => () => void;
@@ -35,6 +42,9 @@ const notifyListeners = (message: GameMessage) => {
   messageCallbacks.forEach((callback) => callback(message));
 };
 
+const HEARTBEAT_INTERVAL = 3000; // Send ping every 3 seconds
+const MAX_MISSED_PINGS = 3; // Disconnect after 3 missed pings (9 seconds)
+
 export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   state: 'idle',
   peer: null,
@@ -44,6 +54,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   isHost: false,
   opponentName: null,
   error: null,
+  latency: null,
+  lastPingTime: null,
+  heartbeatInterval: null,
+  missedPings: 0,
 
   hostGame: async (playerName: string) => {
     return new Promise((resolve, reject) => {
@@ -60,13 +74,28 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         
         peer.on('connection', (conn) => {
           conn.on('open', () => {
-            set({ connection: conn, state: 'connected' });
+            set({ connection: conn, state: 'connected', missedPings: 0 });
             // Send host name to guest
             conn.send({ type: 'chat', payload: { name: playerName } });
+            // Start heartbeat
+            get().startHeartbeat();
           });
           
           conn.on('data', (data) => {
             const message = data as GameMessage;
+            
+            // Handle ping/pong for latency
+            if (message.type === 'ping') {
+              conn.send({ type: 'pong', payload: message.payload });
+              return;
+            }
+            if (message.type === 'pong') {
+              const sentTime = message.payload as number;
+              const latency = Date.now() - sentTime;
+              set({ latency, missedPings: 0 });
+              return;
+            }
+            
             if (message.type === 'chat' && (message.payload as { name?: string }).name) {
               set({ opponentName: (message.payload as { name: string }).name });
             }
@@ -74,10 +103,12 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           });
           
           conn.on('close', () => {
-            set({ state: 'disconnected', connection: null });
+            get().stopHeartbeat();
+            set({ state: 'disconnected', connection: null, latency: null });
           });
           
           conn.on('error', (err) => {
+            get().stopHeartbeat();
             set({ error: err.message, state: 'error' });
           });
         });
@@ -86,11 +117,13 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       });
       
       peer.on('error', (err) => {
+        get().stopHeartbeat();
         set({ error: err.message, state: 'error' });
         reject(err);
       });
       
       peer.on('disconnected', () => {
+        get().stopHeartbeat();
         set({ state: 'disconnected' });
       });
     });
@@ -113,14 +146,29 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         const conn = peer.connect(hostId, { reliable: true });
         
         conn.on('open', () => {
-          set({ connection: conn, state: 'connected' });
+          set({ connection: conn, state: 'connected', missedPings: 0 });
           // Send guest name to host
           conn.send({ type: 'chat', payload: { name: playerName } });
+          // Start heartbeat
+          get().startHeartbeat();
           resolve();
         });
         
         conn.on('data', (data) => {
           const message = data as GameMessage;
+          
+          // Handle ping/pong for latency
+          if (message.type === 'ping') {
+            conn.send({ type: 'pong', payload: message.payload });
+            return;
+          }
+          if (message.type === 'pong') {
+            const sentTime = message.payload as number;
+            const latency = Date.now() - sentTime;
+            set({ latency, missedPings: 0 });
+            return;
+          }
+          
           if (message.type === 'chat' && (message.payload as { name?: string }).name) {
             set({ opponentName: (message.payload as { name: string }).name });
           }
@@ -128,32 +176,40 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
         });
         
         conn.on('close', () => {
-          set({ state: 'disconnected', connection: null });
+          get().stopHeartbeat();
+          set({ state: 'disconnected', connection: null, latency: null });
         });
         
         conn.on('error', (err) => {
+          get().stopHeartbeat();
           set({ error: err.message, state: 'error' });
           reject(err);
         });
       });
       
       peer.on('error', (err) => {
+        get().stopHeartbeat();
         set({ error: err.message, state: 'error' });
         reject(err);
       });
       
       peer.on('disconnected', () => {
+        get().stopHeartbeat();
         set({ state: 'disconnected' });
       });
     });
   },
 
   reconnect: async (gameCode: string, playerName: string): Promise<void> => {
-    const { peer, connection, isHost } = get();
+    const { peer, connection, isHost, stopHeartbeat } = get();
     
     // Clean up existing connection
+    stopHeartbeat();
     connection?.close();
     peer?.destroy();
+    
+    // Reset state
+    set({ latency: null, missedPings: 0 });
     
     // If host, re-host with same ID isn't possible with PeerJS, so just rejoin as guest
     // If guest, attempt to rejoin the host
@@ -173,8 +229,48 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
     }
   },
 
+  sendPing: () => {
+    const { connection, missedPings } = get();
+    if (connection && connection.open) {
+      set({ lastPingTime: Date.now(), missedPings: missedPings + 1 });
+      connection.send({ type: 'ping', payload: Date.now() });
+      
+      // Check if we've missed too many pings
+      if (missedPings + 1 >= MAX_MISSED_PINGS) {
+        console.log('Too many missed pings, marking as disconnected');
+        get().stopHeartbeat();
+        set({ state: 'disconnected', latency: null });
+      }
+    }
+  },
+
+  startHeartbeat: () => {
+    const { heartbeatInterval } = get();
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+    }
+    
+    // Send initial ping
+    get().sendPing();
+    
+    const interval = setInterval(() => {
+      get().sendPing();
+    }, HEARTBEAT_INTERVAL);
+    
+    set({ heartbeatInterval: interval });
+  },
+
+  stopHeartbeat: () => {
+    const { heartbeatInterval } = get();
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      set({ heartbeatInterval: null });
+    }
+  },
+
   disconnect: () => {
-    const { peer, connection } = get();
+    const { peer, connection, stopHeartbeat } = get();
+    stopHeartbeat();
     connection?.close();
     peer?.destroy();
     set({
@@ -186,6 +282,8 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       isHost: false,
       opponentName: null,
       error: null,
+      latency: null,
+      missedPings: 0,
     });
   },
 
