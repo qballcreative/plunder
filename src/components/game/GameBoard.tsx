@@ -11,11 +11,12 @@ import { BonusTokens } from './BonusTokens';
 import { ScoreBoard } from './ScoreBoard';
 import { ActionNotification } from './ActionNotification';
 import { SettingsPanel } from './SettingsPanel';
+import { ConnectionIndicator } from './ConnectionIndicator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoodsType, Card } from '@/types/game';
-import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send, Users, Anchor, WifiOff } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send, Users, Anchor, WifiOff, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const GOODS_ORDER: GoodsType[] = ['gemstones', 'gold', 'silver', 'silks', 'cannonballs', 'rum'];
@@ -45,7 +46,7 @@ export const GameBoard = () => {
 
   const { actionNotificationDuration } = useSettingsStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
-  const { sendMessage, opponentName, isHost, hostId, peerId, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer, reconnect } = useMultiplayerStore();
+  const { sendMessage, opponentName, isHost, hostId, peerId, latency, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer, reconnect } = useMultiplayerStore();
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
@@ -56,6 +57,8 @@ export const GameBoard = () => {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [disconnectTimer, setDisconnectTimer] = useState<number>(0);
+  const disconnectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players[currentPlayerIndex];
@@ -109,11 +112,33 @@ export const GameBoard = () => {
     }
   }, [lastAction, actionNotificationDuration, playActionSound]);
 
-  // Detect multiplayer disconnect
+  // Detect multiplayer disconnect and start timer
   useEffect(() => {
     if (isMultiplayer && multiplayerState === 'disconnected' && phase === 'playing') {
       setShowDisconnectModal(true);
+      setDisconnectTimer(0);
+      
+      // Start countdown timer for claim victory
+      disconnectTimerRef.current = setInterval(() => {
+        setDisconnectTimer((prev) => prev + 1);
+      }, 1000);
+    } else {
+      // Clear timer if reconnected
+      if (disconnectTimerRef.current) {
+        clearInterval(disconnectTimerRef.current);
+        disconnectTimerRef.current = null;
+      }
+      if (multiplayerState === 'connected') {
+        setShowDisconnectModal(false);
+        setDisconnectTimer(0);
+      }
     }
+    
+    return () => {
+      if (disconnectTimerRef.current) {
+        clearInterval(disconnectTimerRef.current);
+      }
+    };
   }, [isMultiplayer, multiplayerState, phase]);
 
   // Listen for multiplayer messages (chat and game state sync)
@@ -218,6 +243,11 @@ export const GameBoard = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Multiplayer Connection Indicator */}
+            {isMultiplayer && phase === 'playing' && (
+              <ConnectionIndicator className="hidden sm:flex" />
+            )}
+            
             {/* Storm Rule Turn Counter */}
             {optionalRules.stormRule && (
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -486,10 +516,41 @@ export const GameBoard = () => {
                 <h2 className="font-pirate text-2xl text-destructive mb-2">
                   Connection Lost
                 </h2>
-                <p className="text-muted-foreground mb-6">
+                <p className="text-muted-foreground mb-4">
                   Your opponent has disconnected from the game.
                 </p>
+                
+                {/* Disconnect Timer */}
+                <div className="mb-6 p-3 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-sm text-muted-foreground mb-1">Time disconnected</p>
+                  <p className="font-pirate text-2xl text-foreground">
+                    {Math.floor(disconnectTimer / 60)}:{(disconnectTimer % 60).toString().padStart(2, '0')}
+                  </p>
+                  {disconnectTimer < 30 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Claim victory available in {30 - disconnectTimer}s
+                    </p>
+                  )}
+                </div>
+                
                 <div className="space-y-3">
+                  {/* Claim Victory Button - available after 30 seconds */}
+                  {disconnectTimer >= 30 && (
+                    <Button 
+                      onClick={() => {
+                        // Set the game to end with local player as winner
+                        playSound('game-win');
+                        setShowDisconnectModal(false);
+                        resetMultiplayer();
+                        resetGame();
+                      }} 
+                      className="w-full bg-primary hover:bg-primary/90"
+                    >
+                      <Crown className="w-5 h-5 mr-2" />
+                      Claim Victory
+                    </Button>
+                  )}
+                  
                   <Button 
                     onClick={async () => {
                       const gameCode = isHost ? peerId : hostId;
@@ -498,6 +559,7 @@ export const GameBoard = () => {
                         try {
                           await reconnect(gameCode, localPlayer?.name || 'Player');
                           setShowDisconnectModal(false);
+                          setDisconnectTimer(0);
                         } catch (err) {
                           console.error('Reconnect failed:', err);
                         } finally {
@@ -506,7 +568,11 @@ export const GameBoard = () => {
                       }
                     }}
                     disabled={isReconnecting || (!hostId && !isHost)}
-                    className="game-button w-full"
+                    variant={disconnectTimer >= 30 ? "outline" : "default"}
+                    className={cn(
+                      "w-full",
+                      disconnectTimer < 30 && "game-button"
+                    )}
                   >
                     {isReconnecting ? (
                       <>
@@ -521,18 +587,19 @@ export const GameBoard = () => {
                     ) : (
                       <>
                         <RotateCcw className="w-5 h-5 mr-2" />
-                        Attempt Reconnect
+                        Wait for Reconnect
                       </>
                     )}
                   </Button>
                   <Button 
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => {
                       setShowDisconnectModal(false);
+                      setDisconnectTimer(0);
                       resetMultiplayer();
                       resetGame();
                     }} 
-                    className="w-full"
+                    className="w-full text-muted-foreground"
                   >
                     <Home className="w-5 h-5 mr-2" />
                     Return to Lobby
