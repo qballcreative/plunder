@@ -60,6 +60,12 @@ export const GameBoard = () => {
   const [disconnectTimer, setDisconnectTimer] = useState<number>(0);
   const disconnectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const showChatRef = useRef(showChat);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    showChatRef.current = showChat;
+  }, [showChat]);
 
   const currentPlayer = players[currentPlayerIndex];
   
@@ -149,9 +155,10 @@ export const GameBoard = () => {
         if (message.type === 'chat' && (message.payload as { text?: string }).text) {
           const payload = message.payload as { text: string; sender: string };
           setChatMessages((prev) => [...prev, { sender: payload.sender, text: payload.text }]);
-          // Play sound and increment unread if chat is closed
-          if (!showChat) {
-            playSound('message');
+          // Always play sound for incoming messages
+          playSound('message');
+          // Increment unread if chat is closed
+          if (!showChatRef.current) {
             setUnreadMessages((prev) => prev + 1);
           }
         } else if (message.type === 'game-state') {
@@ -166,7 +173,7 @@ export const GameBoard = () => {
       });
       return unsubscribe;
     }
-  }, [isMultiplayer, phase, applyGameState, registerMessageHandler, showChat, playSound, nextRound]);
+  }, [isMultiplayer, phase, applyGameState, registerMessageHandler, playSound, nextRound]);
 
   // Sync game state after each action in multiplayer
   const prevLastActionRef = useRef(lastAction);
@@ -183,10 +190,15 @@ export const GameBoard = () => {
     }
   }, [isMultiplayer, phase, lastAction, currentPlayerIndex, sendMessage, getSerializableState]);
 
-  // Auto-scroll chat
+  // Auto-scroll chat when messages change
   useEffect(() => {
     if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      }, 50);
     }
   }, [chatMessages]);
 
@@ -447,7 +459,7 @@ export const GameBoard = () => {
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
-                <ScrollArea className="h-48 p-3" ref={chatScrollRef}>
+                <div className="h-48 p-3 overflow-y-auto" ref={chatScrollRef}>
                   <div className="space-y-2">
                     {chatMessages.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center">No messages yet</p>
@@ -464,7 +476,7 @@ export const GameBoard = () => {
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
                 <div className="p-2 border-t border-border flex gap-2">
                   <Input
                     value={chatInput}
