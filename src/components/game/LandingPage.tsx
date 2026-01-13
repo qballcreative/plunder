@@ -112,23 +112,6 @@ export const LandingPage = () => {
 
       {/* Hero Section */}
       <section className="relative flex-1 flex items-center justify-center p-4">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(3)].map((_, i) => <motion.div key={i} className="absolute text-primary/10" initial={{
-          x: `${20 + i * 30}%`,
-          y: `${10 + i * 25}%`,
-          rotate: Math.random() * 30
-        }} animate={{
-          y: [null, `${5 + i * 20}%`],
-          rotate: [null, Math.random() * 30 - 15]
-        }} transition={{
-          duration: 15 + Math.random() * 10,
-          repeat: Infinity,
-          repeatType: 'reverse'
-        }}>
-              {i % 2 === 0 ? <Anchor className="w-24 h-24 lg:w-32 lg:h-32" /> : <Ship className="w-28 h-28 lg:w-40 lg:h-40" />}
-            </motion.div>)}
-        </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
           {/* Logo */}
