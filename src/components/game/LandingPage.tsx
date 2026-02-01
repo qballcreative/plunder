@@ -1,15 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
+import { usePlayerStore } from '@/store/playerStore';
 import { Difficulty, OptionalRules } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import heroBg from '@/assets/hero-bg.jpg';
 import logoImage from '@/assets/Logo.png';
-import { Anchor, Swords, Users, Ship, Gem, Coins, Wine, CircleDot, Shirt, CloudLightning, Crosshair, Gift } from 'lucide-react';
+import { Anchor, Swords, Users, Ship, Gem, Coins, Wine, CircleDot, Shirt, CloudLightning, Crosshair, Gift, Trophy, Skull, RotateCcw } from 'lucide-react';
 import { SettingsPanel } from './SettingsPanel';
 import { MultiplayerLobby } from './MultiplayerLobby';
+
 const difficultyConfig: Record<Difficulty, {
   label: string;
   description: string;
@@ -31,6 +33,7 @@ const difficultyConfig: Record<Difficulty, {
     color: 'text-destructive border-destructive/30 bg-destructive/10'
   }
 };
+
 const optionalRulesConfig = [{
   key: 'stormRule' as keyof OptionalRules,
   icon: CloudLightning,
@@ -50,6 +53,7 @@ const optionalRulesConfig = [{
   description: 'Hidden bonus tokens revealed at round end',
   color: 'text-amber-400 border-amber-400/30 bg-amber-400/10'
 }];
+
 const goods = [{
   icon: Wine,
   label: 'Rum',
@@ -75,26 +79,48 @@ const goods = [{
   label: 'Gemstones',
   color: 'text-emerald-400'
 }];
+
 export const LandingPage = () => {
-  const [playerName, setPlayerName] = useState('');
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [optionalRules, setOptionalRules] = useState<OptionalRules>({
-    stormRule: false,
-    pirateRaid: false,
-    treasureChest: false
-  });
+  const { 
+    playerName: savedPlayerName, 
+    lastDifficulty, 
+    lastOptionalRules, 
+    stats,
+    setPlayerName: savePlayerName,
+    setLastDifficulty,
+    setLastOptionalRules,
+    resetStats,
+  } = usePlayerStore();
+
+  const [playerName, setPlayerName] = useState(savedPlayerName);
+  const [difficulty, setDifficulty] = useState<Difficulty>(lastDifficulty);
+  const [optionalRules, setOptionalRules] = useState<OptionalRules>(lastOptionalRules);
   const [showMultiplayer, setShowMultiplayer] = useState(false);
-  const {
-    startGame
-  } = useGameStore();
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const { startGame } = useGameStore();
+
+  // Sync local state with stored preferences on mount
+  useEffect(() => {
+    setPlayerName(savedPlayerName);
+    setDifficulty(lastDifficulty);
+    setOptionalRules(lastOptionalRules);
+  }, [savedPlayerName, lastDifficulty, lastOptionalRules]);
+
   const toggleRule = (key: keyof OptionalRules) => {
-    setOptionalRules(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    const newRules = { ...optionalRules, [key]: !optionalRules[key] };
+    setOptionalRules(newRules);
+    setLastOptionalRules(newRules);
   };
+
+  const handleDifficultyChange = (level: Difficulty) => {
+    setDifficulty(level);
+    setLastDifficulty(level);
+  };
+
   const handleStart = () => {
     const name = playerName.trim() || 'Captain';
+    savePlayerName(name);
     startGame(name, difficulty, optionalRules);
   };
   return <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -193,7 +219,7 @@ export const LandingPage = () => {
                   <div className="grid grid-cols-3 gap-2">
                     {(Object.keys(difficultyConfig) as Difficulty[]).map(level => {
                   const config = difficultyConfig[level];
-                  return <button key={level} onClick={() => setDifficulty(level)} className={cn('p-3 rounded-lg border-2 transition-all duration-200', difficulty === level ? config.color : 'border-border hover:border-primary/30 bg-muted/30')}>
+                  return <button key={level} onClick={() => handleDifficultyChange(level)} className={cn('p-3 rounded-lg border-2 transition-all duration-200', difficulty === level ? config.color : 'border-border hover:border-primary/30 bg-muted/30')}>
                           <p className="font-bold text-sm">{config.label}</p>
                           <p className="text-xs text-muted-foreground mt-1 hidden lg:block">{config.description}</p>
                         </button>;
@@ -221,6 +247,62 @@ export const LandingPage = () => {
                       </button>)}
                   </div>
                 </div>
+
+                {/* Player Stats */}
+                {stats.gamesPlayed > 0 && (
+                  <div className="mb-6 p-4 rounded-lg bg-muted/30 border border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm text-muted-foreground">Your Stats</label>
+                      {!showResetConfirm ? (
+                        <button
+                          onClick={() => setShowResetConfirm(true)}
+                          className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          Reset
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              resetStats();
+                              setShowResetConfirm(false);
+                            }}
+                            className="text-xs text-destructive hover:text-destructive/80 transition-colors"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setShowResetConfirm(false)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 rounded bg-muted/50">
+                        <p className="text-lg font-bold text-foreground">{stats.gamesPlayed}</p>
+                        <p className="text-xs text-muted-foreground">Played</p>
+                      </div>
+                      <div className="p-2 rounded bg-emerald-500/10">
+                        <div className="flex items-center justify-center gap-1">
+                          <Trophy className="w-4 h-4 text-emerald-400" />
+                          <p className="text-lg font-bold text-emerald-400">{stats.wins}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Wins</p>
+                      </div>
+                      <div className="p-2 rounded bg-destructive/10">
+                        <div className="flex items-center justify-center gap-1">
+                          <Skull className="w-4 h-4 text-destructive" />
+                          <p className="text-lg font-bold text-destructive">{stats.losses}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Losses</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Start buttons */}
                 <div className="space-y-3">
