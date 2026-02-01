@@ -50,7 +50,7 @@ export const GameBoard = () => {
 
   const [isRaidMode, setIsRaidMode] = useState(false);
   const [showAction, setShowAction] = useState(false);
-  const [prevPhase, setPrevPhase] = useState(phase);
+  const [prevPhase, setPrevPhase] = useState<typeof phase | null>(null);
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
@@ -89,7 +89,7 @@ export const GameBoard = () => {
   // Play sounds for phase changes
   useEffect(() => {
     if (prevPhase !== phase) {
-      if (phase === 'playing' && (prevPhase === 'lobby' || prevPhase === 'roundEnd')) {
+      if (phase === 'playing' && (prevPhase === null || prevPhase === 'lobby' || prevPhase === 'roundEnd')) {
         // Round starting - "Hoist the sails!"
         playSound('new-round');
       } else if (phase === 'roundEnd') {
