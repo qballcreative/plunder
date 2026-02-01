@@ -31,7 +31,12 @@ export const Market = () => {
   const handleCardClick = (cardId: string) => {
     if (!isPlayerTurn || phase !== 'playing') return;
 
+    const card = market.find(c => c.id === cardId);
+    
     if (mode === 'take') {
+      // Ships cannot be taken individually - must use "Take All Ships"
+      if (card?.type === 'ships') return;
+      
       if (canTakeCard(cardId)) {
         takeCard(cardId);
       }
