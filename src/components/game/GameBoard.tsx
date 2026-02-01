@@ -89,7 +89,10 @@ export const GameBoard = () => {
   // Play sounds for phase changes
   useEffect(() => {
     if (prevPhase !== phase) {
-      if (phase === 'roundEnd') {
+      if (phase === 'playing' && (prevPhase === 'lobby' || prevPhase === 'roundEnd')) {
+        // Round starting - "Hoist the sails!"
+        playSound('new-round');
+      } else if (phase === 'roundEnd') {
         const winner = getRoundWinner();
         if (winner && !winner.isAI) {
           playSound('round-win');

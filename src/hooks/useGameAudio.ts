@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { ActionType } from '@/types/game';
 
-type SoundType = ActionType | 'round-win' | 'round-lose' | 'game-win' | 'game-lose' | 'click' | 'error' | 'message';
+type SoundType = ActionType | 'round-win' | 'round-lose' | 'game-win' | 'game-lose' | 'click' | 'error' | 'message' | 'new-round';
 
 const SOUND_URLS: Record<SoundType, string> = {
   'take': '/sounds/card-take.mp3',
@@ -18,6 +18,7 @@ const SOUND_URLS: Record<SoundType, string> = {
   'click': '/sounds/click.mp3',
   'error': '/sounds/error.mp3',
   'message': '/sounds/message.mp3',
+  'new-round': '/sounds/new_game.mp3',
 };
 
 const MUSIC_URL = '/sounds/background-music.mp3';
