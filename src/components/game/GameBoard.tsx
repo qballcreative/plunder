@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore, calculateScore } from '@/store/gameStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { usePlayerStore } from '@/store/playerStore';
 import { useGameAudio } from '@/hooks/useGameAudio';
 import { useMultiplayerStore } from '@/store/multiplayerStore';
 import { Market } from './Market';
@@ -45,6 +46,7 @@ export const GameBoard = () => {
   } = useGameStore();
 
   const { actionNotificationDuration } = useSettingsStore();
+  const { recordGameResult } = usePlayerStore();
   const { playActionSound, playSound, playMusic, stopMusic } = useGameAudio();
   const { sendMessage, opponentName, isHost, hostId, peerId, latency, state: multiplayerState, onMessage: registerMessageHandler, reset: resetMultiplayer, reconnect } = useMultiplayerStore();
 
@@ -110,6 +112,17 @@ export const GameBoard = () => {
       setPrevPhase(phase);
     }
   }, [phase, prevPhase, getRoundWinner, getWinner, playSound]);
+
+  // Record game result when game ends (single player only)
+  useEffect(() => {
+    if (phase === 'gameEnd' && prevPhase !== 'gameEnd' && !isMultiplayer) {
+      const winner = getWinner();
+      if (winner) {
+        const playerWon = !winner.isAI;
+        recordGameResult(playerWon);
+      }
+    }
+  }, [phase, prevPhase, isMultiplayer, getWinner, recordGameResult]);
 
   // Show action notification when lastAction changes and play sound
   useEffect(() => {
