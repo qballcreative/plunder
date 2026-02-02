@@ -45,6 +45,16 @@ const notifyListeners = (message: GameMessage) => {
 const HEARTBEAT_INTERVAL = 3000; // Send ping every 3 seconds
 const MAX_MISSED_PINGS = 3; // Disconnect after 3 missed pings (9 seconds)
 
+// Generate a short, readable game code (6 characters, uppercase letters + numbers, no confusing chars)
+const generateShortCode = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude I, O, 0, 1 for clarity
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   state: 'idle',
   peer: null,
@@ -61,7 +71,8 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
 
   hostGame: async (playerName: string) => {
     return new Promise((resolve, reject) => {
-      const peer = new Peer();
+      const shortCode = generateShortCode();
+      const peer = new Peer(shortCode); // Use custom short code as peer ID
       
       peer.on('open', (id) => {
         set({ 
@@ -72,8 +83,16 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           error: null 
         });
         
-        peer.on('connection', (conn) => {
+        // Setup connection handler that can handle reconnections
+        const setupConnectionHandlers = (conn: DataConnection) => {
           conn.on('open', () => {
+            // Close any existing connection before accepting new one (handles reconnection)
+            const { connection: existingConn, stopHeartbeat } = get();
+            if (existingConn && existingConn !== conn) {
+              stopHeartbeat();
+              existingConn.close();
+            }
+            
             set({ connection: conn, state: 'connected', missedPings: 0 });
             // Send host name to guest
             conn.send({ type: 'chat', payload: { name: playerName } });
@@ -111,13 +130,20 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
             get().stopHeartbeat();
             set({ error: err.message, state: 'error' });
           });
-        });
+        };
+        
+        peer.on('connection', setupConnectionHandlers);
         
         resolve(id);
       });
       
       peer.on('error', (err) => {
         get().stopHeartbeat();
+        // If the short code is already in use, try again with a new one
+        if (err.type === 'unavailable-id') {
+          get().hostGame(playerName).then(resolve).catch(reject);
+          return;
+        }
         set({ error: err.message, state: 'error' });
         reject(err);
       });
