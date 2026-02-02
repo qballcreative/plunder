@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { GoodsType, Card } from '@/types/game';
 import { Trophy, RotateCcw, Home, Swords, CloudLightning, Crosshair, Gift, X, MessageCircle, Send, Users, Anchor, WifiOff, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { sanitizeChatMessage, sanitizePlayerName, isValidChatPayload, CHAT_MESSAGE_MAX_LENGTH } from '@/lib/security';
 
 const GOODS_ORDER: GoodsType[] = ['gemstones', 'gold', 'silver', 'silks', 'cannonballs', 'rum'];
 
@@ -189,14 +190,21 @@ export const GameBoard = () => {
     if (isMultiplayer && (phase === 'playing' || phase === 'roundEnd')) {
       const unsubscribe = registerMessageHandler((message) => {
         console.log('GameBoard received message:', message.type);
-        if (message.type === 'chat' && (message.payload as { text?: string }).text) {
-          const payload = message.payload as { text: string; sender: string };
-          setChatMessages((prev) => [...prev, { sender: payload.sender, text: payload.text }]);
-          // Always play sound for incoming messages
-          playSound('message');
-          // Increment unread if chat is closed
-          if (!showChatRef.current) {
-            setUnreadMessages((prev) => prev + 1);
+        if (message.type === 'chat' && isValidChatPayload(message.payload)) {
+          // Validate and sanitize incoming chat message
+          const payload = message.payload;
+          const sanitizedText = sanitizeChatMessage(payload.text);
+          const sanitizedSender = sanitizePlayerName(payload.sender);
+          
+          // Only add if message has content after sanitization
+          if (sanitizedText) {
+            setChatMessages((prev) => [...prev, { sender: sanitizedSender, text: sanitizedText }]);
+            // Always play sound for incoming messages
+            playSound('message');
+            // Increment unread if chat is closed
+            if (!showChatRef.current) {
+              setUnreadMessages((prev) => prev + 1);
+            }
           }
         } else if (message.type === 'game-state') {
           // Receive game state update from opponent (swap players for our perspective)
@@ -241,7 +249,11 @@ export const GameBoard = () => {
 
   const sendChatMessage = () => {
     if (!chatInput.trim()) return;
-    const message = { sender: localPlayer?.name || 'You', text: chatInput.trim() };
+    // Sanitize outgoing message as well (defense in depth)
+    const sanitizedText = sanitizeChatMessage(chatInput);
+    if (!sanitizedText) return;
+    
+    const message = { sender: localPlayer?.name || 'You', text: sanitizedText };
     setChatMessages((prev) => [...prev, message]);
     sendMessage({ type: 'chat', payload: message });
     setChatInput('');

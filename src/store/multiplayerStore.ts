@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import Peer, { DataConnection } from 'peerjs';
+import { generateSecureShortCode, sanitizePlayerName } from '@/lib/security';
 
 export type MultiplayerState = 'idle' | 'hosting' | 'joining' | 'connected' | 'disconnected' | 'error';
 
@@ -45,15 +46,8 @@ const notifyListeners = (message: GameMessage) => {
 const HEARTBEAT_INTERVAL = 3000; // Send ping every 3 seconds
 const MAX_MISSED_PINGS = 3; // Disconnect after 3 missed pings (9 seconds)
 
-// Generate a short, readable game code (6 characters, uppercase letters + numbers, no confusing chars)
-const generateShortCode = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude I, O, 0, 1 for clarity
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-};
+// Use cryptographically secure code generation
+const generateShortCode = generateSecureShortCode;
 
 export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   state: 'idle',
@@ -116,7 +110,9 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
             }
             
             if (message.type === 'chat' && (message.payload as { name?: string }).name) {
-              set({ opponentName: (message.payload as { name: string }).name });
+              // Sanitize opponent name to prevent XSS
+              const rawName = (message.payload as { name: string }).name;
+              set({ opponentName: sanitizePlayerName(rawName) });
             }
             notifyListeners(message);
           });
@@ -196,7 +192,9 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           }
           
           if (message.type === 'chat' && (message.payload as { name?: string }).name) {
-            set({ opponentName: (message.payload as { name: string }).name });
+            // Sanitize opponent name to prevent XSS
+            const rawName = (message.payload as { name: string }).name;
+            set({ opponentName: sanitizePlayerName(rawName) });
           }
           notifyListeners(message);
         });

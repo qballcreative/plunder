@@ -20,6 +20,7 @@ import {
   MARKET_SIZE,
   MIN_SELL_EXPENSIVE,
 } from '@/types/game';
+import { generateSecureId, secureShuffle, secureRandomInt, secureRandom } from '@/lib/security';
 
 // Pirate names for AI opponent
 const PIRATE_NAMES = [
@@ -45,19 +46,11 @@ const PIRATE_NAMES = [
   "Davey Jones",
 ];
 
-const getRandomPirateName = () => PIRATE_NAMES[Math.floor(Math.random() * PIRATE_NAMES.length)];
+const getRandomPirateName = () => PIRATE_NAMES[secureRandomInt(PIRATE_NAMES.length)];
 
-// Utility functions
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-const shuffle = <T>(array: T[]): T[] => {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-};
+// Utility functions - using cryptographically secure randomness
+const generateId = generateSecureId;
+const shuffle = secureShuffle;
 
 const createDeck = (): Card[] => {
   const cards: Card[] = [];
@@ -836,9 +829,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     let chosenIndex = 0;
     if (difficulty === 'easy') {
-      chosenIndex = Math.floor(Math.random() * Math.min(3, actions.length));
+      chosenIndex = secureRandomInt(Math.min(3, actions.length));
     } else if (difficulty === 'medium') {
-      chosenIndex = Math.random() < 0.7 ? 0 : Math.floor(Math.random() * Math.min(2, actions.length));
+      chosenIndex = secureRandom() < 0.7 ? 0 : secureRandomInt(Math.min(2, actions.length));
     }
     // hard: always pick best
 
