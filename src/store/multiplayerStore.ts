@@ -17,6 +17,7 @@ interface MultiplayerStore {
   hostId: string | null;
   isHost: boolean;
   opponentName: string | null;
+  localPlayerName: string | null; // Store local player's name for this session
   error: string | null;
   latency: number | null;
   lastPingTime: number | null;
@@ -33,6 +34,7 @@ interface MultiplayerStore {
   stopHeartbeat: () => void;
   disconnect: () => void;
   setOpponentName: (name: string) => void;
+  setLocalPlayerName: (name: string) => void;
   onMessage: (callback: (message: GameMessage) => void) => () => void;
   reset: () => void;
 }
@@ -57,6 +59,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   hostId: null,
   isHost: false,
   opponentName: null,
+  localPlayerName: null,
   error: null,
   latency: null,
   lastPingTime: null,
@@ -74,6 +77,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           peerId: id, 
           state: 'hosting', 
           isHost: true,
+          localPlayerName: playerName,
           error: null 
         });
         
@@ -162,6 +166,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
           hostId, 
           state: 'joining', 
           isHost: false,
+          localPlayerName: playerName,
           error: null 
         });
         
@@ -305,6 +310,7 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
       hostId: null,
       isHost: false,
       opponentName: null,
+      localPlayerName: null,
       error: null,
       latency: null,
       missedPings: 0,
@@ -313,6 +319,10 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
 
   setOpponentName: (name: string) => {
     set({ opponentName: name });
+  },
+
+  setLocalPlayerName: (name: string) => {
+    set({ localPlayerName: name });
   },
 
   onMessage: (callback: (message: GameMessage) => void) => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMultiplayerStore } from '@/store/multiplayerStore';
 import { useGameStore } from '@/store/gameStore';
+import { usePlayerStore } from '@/store/playerStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, Users, Loader2, ArrowLeft, Anchor, Wifi, WifiOff } from 'lucide-react';
@@ -12,13 +13,16 @@ interface MultiplayerLobbyProps {
   playerName: string;
   optionalRules: OptionalRules;
   onBack: () => void;
+  onNameChange: (name: string) => void;
 }
 
-export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: MultiplayerLobbyProps) => {
+export const MultiplayerLobby = ({ playerName, optionalRules, onBack, onNameChange }: MultiplayerLobbyProps) => {
   const [mode, setMode] = useState<'select' | 'host' | 'join'>('select');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  
+  const { setPlayerName: savePlayerName } = usePlayerStore();
   
   const { 
     state, 
@@ -26,6 +30,7 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
     opponentName, 
     error,
     isHost,
+    localPlayerName,
     hostGame, 
     joinGame, 
     sendMessage,
@@ -60,8 +65,12 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
 
   const handleHost = async () => {
     setMode('host');
+    const name = playerName.trim() || 'Captain';
+    // Save name for future sessions
+    savePlayerName(name);
+    onNameChange(name);
     try {
-      await hostGame(playerName || 'Captain');
+      await hostGame(name);
     } catch (err) {
       console.error('Failed to host game:', err);
     }
@@ -69,8 +78,12 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
 
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
+    const name = playerName.trim() || 'Captain';
+    // Save name for future sessions
+    savePlayerName(name);
+    onNameChange(name);
     try {
-      await joinGame(joinCode.trim(), playerName || 'Captain');
+      await joinGame(joinCode.trim(), name);
     } catch (err) {
       console.error('Failed to join game:', err);
     }
@@ -90,8 +103,9 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
   };
 
   const handleStartGame = () => {
-    // Host generates the game state
-    startMultiplayerGame(playerName || 'Captain', opponentName || 'Opponent', optionalRules, true);
+    // Host generates the game state using the stored local player name
+    const hostName = localPlayerName || playerName || 'Captain';
+    startMultiplayerGame(hostName, opponentName || 'Opponent', optionalRules, true);
     
     // Small delay to ensure state is set, then send to guest
     setTimeout(() => {
