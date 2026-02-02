@@ -193,7 +193,7 @@ export const LandingPage = () => {
 
           {/* Game setup or Multiplayer Lobby */}
           <AnimatePresence mode="wait">
-            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} optionalRules={optionalRules} onBack={() => setShowMultiplayer(false)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
+            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} optionalRules={optionalRules} onBack={() => setShowMultiplayer(false)} onNameChange={(name) => setPlayerName(name)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
             opacity: 0,
             y: 30
           }} animate={{
