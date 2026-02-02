@@ -4,7 +4,7 @@ import Peer, { DataConnection } from 'peerjs';
 export type MultiplayerState = 'idle' | 'hosting' | 'joining' | 'connected' | 'disconnected' | 'error';
 
 export interface GameMessage {
-  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start' | 'next-round' | 'ping' | 'pong';
+  type: 'game-state' | 'action' | 'chat' | 'ready' | 'start' | 'next-round' | 'ping' | 'pong' | 'rejoin-sync';
   payload: unknown;
 }
 
