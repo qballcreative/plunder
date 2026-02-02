@@ -134,6 +134,9 @@ export const GameBoard = () => {
     }
   }, [lastAction, actionNotificationDuration, playActionSound]);
 
+  // Track previous multiplayer state to detect reconnection
+  const prevMultiplayerStateRef = useRef(multiplayerState);
+  
   // Detect multiplayer disconnect and start timer
   useEffect(() => {
     if (isMultiplayer && multiplayerState === 'disconnected' && phase === 'playing') {
@@ -162,6 +165,24 @@ export const GameBoard = () => {
       }
     };
   }, [isMultiplayer, multiplayerState, phase]);
+
+  // Host: Send game state to reconnecting guest when connection re-establishes
+  useEffect(() => {
+    const wasDisconnected = prevMultiplayerStateRef.current === 'disconnected' || 
+                            prevMultiplayerStateRef.current === 'hosting';
+    const nowConnected = multiplayerState === 'connected';
+    
+    // If we're the host, game is in progress, and connection just re-established
+    if (isMultiplayer && isHost && phase === 'playing' && wasDisconnected && nowConnected) {
+      console.log('Host detected reconnection, sending rejoin-sync to guest');
+      // Send current game state to the reconnected guest
+      const gameState = getSerializableState();
+      sendMessage({ type: 'rejoin-sync', payload: { gameState } });
+    }
+    
+    // Update the ref for next comparison
+    prevMultiplayerStateRef.current = multiplayerState;
+  }, [isMultiplayer, isHost, phase, multiplayerState, sendMessage, getSerializableState]);
 
   // Listen for multiplayer messages (chat and game state sync)
   useEffect(() => {

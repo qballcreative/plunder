@@ -36,6 +36,7 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
   const { startMultiplayerGame, applyGameState, getSerializableState } = useGameStore();
 
   // Listen for start message from host (when we're the guest)
+  // Also handles 'rejoin-sync' for reconnecting mid-game
   useEffect(() => {
     if (state === 'connected') {
       const unsubscribe = onMessage((message) => {
@@ -44,6 +45,12 @@ export const MultiplayerLobby = ({ playerName, optionalRules, onBack }: Multipla
           const payload = message.payload as { optionalRules: OptionalRules; gameState: any };
           console.log('Guest received start with game state');
           // Guest applies the game state from host (with player swap)
+          applyGameState(payload.gameState, true);
+        } else if (message.type === 'rejoin-sync') {
+          // Reconnecting player receives current game state from host
+          const payload = message.payload as { gameState: any };
+          console.log('Guest received rejoin-sync with current game state');
+          // Apply game state (with player swap) to resume the game
           applyGameState(payload.gameState, true);
         }
       });
