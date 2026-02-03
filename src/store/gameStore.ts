@@ -749,53 +749,214 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   makeAIMove: () => {
-    const { market, players, currentPlayerIndex, tokenStacks, difficulty, optionalRules } = get();
+    const { market, players, currentPlayerIndex, tokenStacks, bonusTokens, difficulty, optionalRules } = get();
     const ai = players[currentPlayerIndex];
     if (!ai.isAI) return;
 
-    // AI decision making
-    const actions: { action: () => void; score: number }[] = [];
+    const opponent = players[currentPlayerIndex === 0 ? 1 : 0];
 
-    // Evaluate pirate raid (if available and has good targets)
-    if (optionalRules.pirateRaid && !ai.hasUsedPirateRaid && ai.hand.length < HAND_LIMIT) {
-      const opponent = players[currentPlayerIndex === 0 ? 1 : 0];
-      const valuableTypes: GoodsType[] = ['gemstones', 'gold', 'silver'];
+    // ============= STRATEGIC AI CONFIGURATION =============
+    const difficultyWeights = {
+      easy: { blocking: 0, bonusPursuit: 0.5, sellPatience: 0, tokenUrgency: 0.3, randomVariance: 0.5 },
+      medium: { blocking: 0.3, bonusPursuit: 0.8, sellPatience: 0.5, tokenUrgency: 0.6, randomVariance: 0.25 },
+      hard: { blocking: 0.8, bonusPursuit: 1.2, sellPatience: 1.0, tokenUrgency: 1.0, randomVariance: 0.1 },
+    };
+    const weights = difficultyWeights[difficulty];
+
+    // ============= HELPER FUNCTIONS =============
+
+    // Get card counts by type for a player
+    const getCardCounts = (player: Player): Record<GoodsType, number> => {
+      const counts: Record<GoodsType, number> = {} as Record<GoodsType, number>;
+      const goodsTypes: GoodsType[] = ['rum', 'cannonballs', 'silks', 'silver', 'gold', 'gemstones'];
+      goodsTypes.forEach(type => {
+        counts[type] = player.hand.filter(c => c.type === type).length;
+      });
+      return counts;
+    };
+
+    // Evaluate how urgently a goods type should be collected/sold (based on remaining high-value tokens)
+    const evaluateTokenUrgency = (type: GoodsType): number => {
+      const stack = tokenStacks[type];
+      if (stack.length === 0) return 0;
       
-      opponent.hand.forEach((card) => {
-        if (valuableTypes.includes(card.type as GoodsType)) {
-          const stack = tokenStacks[card.type as GoodsType];
-          let score = stack.length > 0 ? stack[0].value + 3 : 5; // High priority for valuable cards
-          actions.push({ action: () => get().pirateRaid(card.id), score });
+      // Higher urgency when fewer tokens remain and they're still valuable
+      const remainingValue = stack.slice(0, 3).reduce((sum, t) => sum + t.value, 0);
+      const scarcityBonus = Math.max(0, (5 - stack.length) * 2);
+      return (remainingValue / 3) + scarcityBonus;
+    };
+
+    // Evaluate if opponent is collecting a type (blocking score)
+    const evaluateBlockingValue = (type: GoodsType): number => {
+      const opponentCount = opponent.hand.filter(c => c.type === type).length;
+      if (opponentCount >= 3) return 8; // Critical - they're close to bonus
+      if (opponentCount >= 2) return 4; // Moderate threat
+      if (opponentCount >= 1) return 1;
+      return 0;
+    };
+
+    // Evaluate bonus potential for selling X cards
+    const evaluateBonusPotential = (cardCount: number): number => {
+      if (cardCount >= 5 && bonusTokens.five.length > 0) {
+        return bonusTokens.five[0].value + 4; // 5-card bonus is huge
+      }
+      if (cardCount >= 4 && bonusTokens.four.length > 0) {
+        return bonusTokens.four[0].value + 2;
+      }
+      if (cardCount >= 3 && bonusTokens.three.length > 0) {
+        return bonusTokens.three[0].value;
+      }
+      return 0;
+    };
+
+    // Calculate sell timing penalty/bonus
+    const evaluateSellTiming = (type: GoodsType, cardCount: number): number => {
+      const aiCardCount = ai.hand.filter(c => c.type === type).length;
+      const stack = tokenStacks[type];
+      
+      // If tokens are running out, sell now
+      if (stack.length <= cardCount) return 3;
+      
+      // Penalty for selling small amounts when we could wait for bonus
+      if (cardCount < 3 && aiCardCount < 4) {
+        // Check if we might get more of this type
+        const marketHas = market.filter(c => c.type === type).length;
+        if (marketHas > 0 || stack.length > cardCount + 2) {
+          return -4 * weights.sellPatience; // Wait for bigger sale
         }
+      }
+      
+      return 0;
+    };
+
+    // Evaluate taking a card's value
+    const evaluateTakeValue = (type: GoodsType): number => {
+      const stack = tokenStacks[type];
+      if (stack.length === 0) return -2;
+      
+      const aiCount = ai.hand.filter(c => c.type === type).length;
+      let score = stack[0].value;
+      
+      // Bonus for building toward 3/4/5 card bonuses
+      if (aiCount === 4) score += 10 * weights.bonusPursuit; // Getting to 5!
+      else if (aiCount === 3) score += 6 * weights.bonusPursuit; // Getting to 4
+      else if (aiCount === 2) score += 4 * weights.bonusPursuit; // Getting to 3
+      else if (aiCount === 1) score += 2 * weights.bonusPursuit;
+      
+      // Token urgency - prioritize scarce high-value tokens
+      score += evaluateTokenUrgency(type) * weights.tokenUrgency;
+      
+      // Blocking value
+      score += evaluateBlockingValue(type) * weights.blocking;
+      
+      return score;
+    };
+
+    // Evaluate an exchange opportunity
+    const evaluateExchange = (handCardIds: string[], marketCardIds: string[]): number => {
+      const handCards = ai.hand.filter(c => handCardIds.includes(c.id));
+      const handShips = ai.ships.filter(c => handCardIds.includes(c.id));
+      const marketCards = market.filter(c => marketCardIds.includes(c.id));
+      
+      if (handCards.length + handShips.length !== marketCards.length) return -100;
+      if (marketCards.length < 2) return -100;
+      
+      // Check hand limit
+      const nonShipMarketCards = marketCards.filter(c => c.type !== 'ships').length;
+      const newHandSize = ai.hand.length - handCards.length + nonShipMarketCards;
+      if (newHandSize > HAND_LIMIT) return -100;
+      
+      // Calculate value of cards we're giving up
+      let givenValue = 0;
+      handCards.forEach(c => {
+        if (c.type !== 'ships') {
+          const type = c.type as GoodsType;
+          const stack = tokenStacks[type];
+          givenValue += stack.length > 0 ? stack[0].value * 0.5 : 1; // Discount since not sold yet
+        }
+      });
+      // Ships have low opportunity cost
+      givenValue += handShips.length * 0.5;
+      
+      // Calculate value of cards we're getting
+      let gainedValue = 0;
+      let bonusOpportunity = 0;
+      marketCards.forEach(c => {
+        if (c.type !== 'ships') {
+          const type = c.type as GoodsType;
+          gainedValue += evaluateTakeValue(type);
+          
+          // Check if this enables a bonus sale
+          const aiCount = ai.hand.filter(hc => hc.type === type).length;
+          const incomingCount = marketCards.filter(mc => mc.type === type).length;
+          const futureCount = aiCount + incomingCount - handCards.filter(hc => hc.type === type).length;
+          bonusOpportunity += evaluateBonusPotential(futureCount);
+        }
+      });
+      
+      return gainedValue - givenValue + (bonusOpportunity * weights.bonusPursuit);
+    };
+
+    // ============= BUILD ACTION LIST =============
+    const actions: { action: () => void; score: number; description: string }[] = [];
+
+    // --- PIRATE RAID ---
+    if (optionalRules.pirateRaid && !ai.hasUsedPirateRaid && ai.hand.length < HAND_LIMIT) {
+      opponent.hand.forEach((card) => {
+        if (card.type === 'ships') return;
+        
+        const type = card.type as GoodsType;
+        let score = evaluateTakeValue(type);
+        
+        // On hard, target cards opponent is collecting
+        const opponentCount = opponent.hand.filter(c => c.type === type).length;
+        if (opponentCount >= 3) score += 10 * weights.blocking; // Disrupt their bonus
+        
+        // Also consider what we need
+        const aiCount = ai.hand.filter(c => c.type === type).length;
+        if (aiCount >= 3) score += 8; // Complete our set
+        
+        actions.push({ 
+          action: () => get().pirateRaid(card.id), 
+          score: score + 5, // Raid has inherent value (one-time use)
+          description: `raid ${type}`
+        });
       });
     }
 
-    // Evaluate taking each card
+    // --- TAKE SINGLE CARD ---
     market.forEach((card) => {
-      if (card.type !== 'ships' && ai.hand.length < HAND_LIMIT) {
-        let score = 0;
-        const type = card.type as GoodsType;
-        const stack = tokenStacks[type];
-        if (stack.length > 0) {
-          score = stack[0].value;
-          // Count existing cards of this type
-          const existing = ai.hand.filter((c) => c.type === type).length;
-          score += existing * 2; // Bonus for collecting sets
-        }
-        actions.push({ action: () => get().takeCard(card.id), score });
-      }
+      if (card.type === 'ships') return;
+      if (ai.hand.length >= HAND_LIMIT) return;
+      
+      const type = card.type as GoodsType;
+      const score = evaluateTakeValue(type);
+      
+      actions.push({ 
+        action: () => get().takeCard(card.id), 
+        score,
+        description: `take ${type}`
+      });
     });
 
-    // Evaluate taking all ships
+    // --- TAKE ALL SHIPS ---
     const ships = market.filter((c) => c.type === 'ships');
     if (ships.length > 0) {
+      // Ships are valuable for exchanges and end-game bonus
+      let score = ships.length * 2;
+      // More valuable when we have cards to exchange
+      if (ai.hand.length >= 5) score += 3;
+      // Less valuable if we already have many
+      if (ai.ships.length >= 5) score -= 2;
+      
       actions.push({
         action: () => get().takeAllShips(),
-        score: ships.length * 1.5,
+        score,
+        description: `take ${ships.length} ships`
       });
     }
 
-    // Evaluate selling
+    // --- SELL CARDS ---
     const cardsByType: Record<string, Card[]> = {};
     ai.hand.forEach((card) => {
       if (!cardsByType[card.type]) cardsByType[card.type] = [];
@@ -803,41 +964,111 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
 
     Object.entries(cardsByType).forEach(([type, cards]) => {
+      const goodsType = type as GoodsType;
       const expensive = ['gold', 'silver', 'gemstones'];
       const minCards = expensive.includes(type) ? 2 : 1;
       
       if (cards.length >= minCards) {
-        const stack = tokenStacks[type as GoodsType];
+        const stack = tokenStacks[goodsType];
+        
+        // Calculate base token value
         let score = 0;
         for (let i = 0; i < Math.min(cards.length, stack.length); i++) {
           score += stack[i].value;
         }
-        // Bonus for larger sales
-        if (cards.length >= 5) score += 10;
-        else if (cards.length >= 4) score += 6;
-        else if (cards.length >= 3) score += 3;
+        
+        // Add bonus token value
+        score += evaluateBonusPotential(cards.length);
+        
+        // Sell timing adjustment
+        score += evaluateSellTiming(goodsType, cards.length);
+        
+        // Token urgency - sell if tokens running out
+        if (stack.length <= cards.length + 1) {
+          score += 5 * weights.tokenUrgency; // Urgent sale
+        }
         
         actions.push({
           action: () => get().sellCards(cards.map((c) => c.id)),
           score,
+          description: `sell ${cards.length} ${type}`
         });
       }
     });
 
-    // Sort by score and add randomness based on difficulty
+    // --- EXCHANGE CARDS ---
+    // Only evaluate on medium/hard or if we have ships to trade
+    if (difficulty !== 'easy' || ai.ships.length >= 2) {
+      const goodsInMarket = market.filter(c => c.type !== 'ships');
+      
+      // Strategy: Trade ships + low-value goods for high-value market cards
+      if (goodsInMarket.length >= 2) {
+        // Find valuable market cards worth getting
+        const valuableMarket = goodsInMarket
+          .filter(c => {
+            const type = c.type as GoodsType;
+            return evaluateTakeValue(type) >= 4;
+          })
+          .slice(0, 3);
+        
+        if (valuableMarket.length >= 2) {
+          // Find low-value cards to give up
+          const expendable: Card[] = [];
+          
+          // Ships are great for trading
+          expendable.push(...ai.ships.slice(0, 2));
+          
+          // Add low-value goods (where we only have 1 and token stack is low value)
+          Object.entries(cardsByType).forEach(([type, cards]) => {
+            if (cards.length === 1) {
+              const stack = tokenStacks[type as GoodsType];
+              if (stack.length > 0 && stack[0].value <= 3) {
+                expendable.push(cards[0]);
+              }
+            }
+          });
+          
+          if (expendable.length >= 2) {
+            // Try exchange combinations
+            const numToTrade = Math.min(expendable.length, valuableMarket.length, 3);
+            
+            const handToGive = expendable.slice(0, numToTrade).map(c => c.id);
+            const marketToTake = valuableMarket.slice(0, numToTrade).map(c => c.id);
+            
+            const exchangeScore = evaluateExchange(handToGive, marketToTake);
+            
+            if (exchangeScore > 0) {
+              actions.push({
+                action: () => get().exchangeCards(handToGive, marketToTake),
+                score: exchangeScore,
+                description: `exchange ${numToTrade} cards`
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // ============= SELECT ACTION =============
+    if (actions.length === 0) return;
+
+    // Sort by score descending
     actions.sort((a, b) => b.score - a.score);
 
     let chosenIndex = 0;
-    if (difficulty === 'easy') {
-      chosenIndex = secureRandomInt(Math.min(3, actions.length));
-    } else if (difficulty === 'medium') {
-      chosenIndex = secureRandom() < 0.7 ? 0 : secureRandomInt(Math.min(2, actions.length));
+    
+    // Apply randomness based on difficulty
+    if (weights.randomVariance > 0) {
+      const random = secureRandom();
+      if (random < weights.randomVariance) {
+        // Pick from top 3 instead of always best
+        const topN = Math.min(3, actions.length);
+        chosenIndex = secureRandomInt(topN);
+      }
     }
-    // hard: always pick best
 
-    if (actions.length > 0) {
-      actions[chosenIndex].action();
-    }
+    // Execute chosen action
+    actions[chosenIndex].action();
   },
 
   canTakeCard: (cardId) => {
