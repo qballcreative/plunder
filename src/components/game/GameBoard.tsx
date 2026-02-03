@@ -571,101 +571,149 @@ export const GameBoard = () => {
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
-                className="bg-card p-8 rounded-2xl border border-destructive/30 shadow-2xl max-w-md w-full text-center"
+                className={cn(
+                  "bg-card p-8 rounded-2xl shadow-2xl max-w-md w-full text-center",
+                  !isHost ? "border border-primary/30" : "border border-destructive/30"
+                )}
               >
-                <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
-                <h2 className="font-pirate text-2xl text-destructive mb-2">
-                  Connection Lost
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  Your opponent has disconnected from the game.
-                </p>
-                
-                {/* Disconnect Timer */}
-                <div className="mb-6 p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-sm text-muted-foreground mb-1">Time disconnected</p>
-                  <p className="font-pirate text-2xl text-foreground">
-                    {Math.floor(disconnectTimer / 60)}:{(disconnectTimer % 60).toString().padStart(2, '0')}
-                  </p>
-                  {disconnectTimer < 30 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Claim victory available in {30 - disconnectTimer}s
+                {/* Guest sees host disconnected - immediate victory */}
+                {!isHost ? (
+                  <>
+                    <Crown className="w-16 h-16 text-primary mx-auto mb-4" />
+                    <h2 className="font-pirate text-2xl text-primary mb-2">
+                      Host Disconnected!
+                    </h2>
+                    <p className="text-muted-foreground mb-6">
+                      The host has left the game. You win by forfeit!
                     </p>
-                  )}
-                </div>
-                
-                <div className="space-y-3">
-                  {/* Claim Victory Button - available after 30 seconds */}
-                  {disconnectTimer >= 30 && (
-                    <Button 
-                      onClick={() => {
-                        // Set the game to end with local player as winner
-                        playSound('game-win');
-                        setShowDisconnectModal(false);
-                        resetMultiplayer();
-                        resetGame();
-                      }} 
-                      className="w-full bg-primary hover:bg-primary/90"
-                    >
-                      <Crown className="w-5 h-5 mr-2" />
-                      Claim Victory
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    onClick={async () => {
-                      const gameCode = isHost ? peerId : hostId;
-                      if (gameCode) {
-                        setIsReconnecting(true);
-                        try {
-                          await reconnect(gameCode, localPlayer?.name || 'Player');
+                    
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={() => {
+                          playSound('game-win');
+                          recordGameResult(true);
+                          setShowDisconnectModal(false);
+                          resetMultiplayer();
+                          resetGame();
+                        }} 
+                        className="w-full game-button"
+                      >
+                        <Crown className="w-5 h-5 mr-2" />
+                        Claim Victory
+                      </Button>
+                      <Button 
+                        variant="ghost"
+                        onClick={() => {
                           setShowDisconnectModal(false);
                           setDisconnectTimer(0);
-                        } catch (err) {
-                          console.error('Reconnect failed:', err);
-                        } finally {
-                          setIsReconnecting(false);
-                        }
-                      }
-                    }}
-                    disabled={isReconnecting || (!hostId && !isHost)}
-                    variant={disconnectTimer >= 30 ? "outline" : "default"}
-                    className={cn(
-                      "w-full",
-                      disconnectTimer < 30 && "game-button"
-                    )}
-                  >
-                    {isReconnecting ? (
-                      <>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                          resetMultiplayer();
+                          resetGame();
+                        }} 
+                        className="w-full text-muted-foreground"
+                      >
+                        <Home className="w-5 h-5 mr-2" />
+                        Return to Lobby
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  /* Host sees guest disconnected - wait or claim after timeout */
+                  <>
+                    <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
+                    <h2 className="font-pirate text-2xl text-destructive mb-2">
+                      Connection Lost
+                    </h2>
+                    <p className="text-muted-foreground mb-4">
+                      Your opponent has disconnected from the game.
+                    </p>
+                    
+                    {/* Disconnect Timer */}
+                    <div className="mb-6 p-3 rounded-lg bg-muted/50 border border-border">
+                      <p className="text-sm text-muted-foreground mb-1">Time disconnected</p>
+                      <p className="font-pirate text-2xl text-foreground">
+                        {Math.floor(disconnectTimer / 60)}:{(disconnectTimer % 60).toString().padStart(2, '0')}
+                      </p>
+                      {disconnectTimer < 30 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Claim victory available in {30 - disconnectTimer}s
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {/* Claim Victory Button - available after 30 seconds */}
+                      {disconnectTimer >= 30 && (
+                        <Button 
+                          onClick={() => {
+                            playSound('game-win');
+                            recordGameResult(true);
+                            setShowDisconnectModal(false);
+                            resetMultiplayer();
+                            resetGame();
+                          }} 
+                          className="w-full bg-primary hover:bg-primary/90"
                         >
-                          <RotateCcw className="w-5 h-5 mr-2" />
-                        </motion.div>
-                        Reconnecting...
-                      </>
-                    ) : (
-                      <>
-                        <RotateCcw className="w-5 h-5 mr-2" />
-                        Wait for Reconnect
-                      </>
-                    )}
-                  </Button>
-                  <Button 
-                    variant="ghost"
-                    onClick={() => {
-                      setShowDisconnectModal(false);
-                      setDisconnectTimer(0);
-                      resetMultiplayer();
-                      resetGame();
-                    }} 
-                    className="w-full text-muted-foreground"
-                  >
-                    <Home className="w-5 h-5 mr-2" />
-                    Return to Lobby
-                  </Button>
-                </div>
+                          <Crown className="w-5 h-5 mr-2" />
+                          Claim Victory
+                        </Button>
+                      )}
+                      
+                      <Button 
+                        onClick={async () => {
+                          const gameCode = isHost ? peerId : hostId;
+                          if (gameCode) {
+                            setIsReconnecting(true);
+                            try {
+                              await reconnect(gameCode, localPlayer?.name || 'Player');
+                              setShowDisconnectModal(false);
+                              setDisconnectTimer(0);
+                            } catch (err) {
+                              console.error('Reconnect failed:', err);
+                            } finally {
+                              setIsReconnecting(false);
+                            }
+                          }
+                        }}
+                        disabled={isReconnecting}
+                        variant={disconnectTimer >= 30 ? "outline" : "default"}
+                        className={cn(
+                          "w-full",
+                          disconnectTimer < 30 && "game-button"
+                        )}
+                      >
+                        {isReconnecting ? (
+                          <>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                            >
+                              <RotateCcw className="w-5 h-5 mr-2" />
+                            </motion.div>
+                            Reconnecting...
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="w-5 h-5 mr-2" />
+                            Wait for Reconnect
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        variant="ghost"
+                        onClick={() => {
+                          setShowDisconnectModal(false);
+                          setDisconnectTimer(0);
+                          resetMultiplayer();
+                          resetGame();
+                        }} 
+                        className="w-full text-muted-foreground"
+                      >
+                        <Home className="w-5 h-5 mr-2" />
+                        Return to Lobby
+                      </Button>
+                    </div>
+                  </>
+                )}
               </motion.div>
             </motion.div>
           )}
