@@ -760,6 +760,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       easy: { blocking: 0, bonusPursuit: 0.5, sellPatience: 0, tokenUrgency: 0.3, randomVariance: 0.5 },
       medium: { blocking: 0.3, bonusPursuit: 0.8, sellPatience: 0.5, tokenUrgency: 0.6, randomVariance: 0.25 },
       hard: { blocking: 0.8, bonusPursuit: 1.2, sellPatience: 1.0, tokenUrgency: 1.0, randomVariance: 0.1 },
+      expert: { blocking: 1.0, bonusPursuit: 1.5, sellPatience: 1.2, tokenUrgency: 1.2, randomVariance: 0 },
     };
     const weights = difficultyWeights[difficulty];
 
