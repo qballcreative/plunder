@@ -576,31 +576,60 @@ export const GameBoard = () => {
                   !isHost ? "border border-primary/30" : "border border-destructive/30"
                 )}
               >
-                {/* Guest sees host disconnected - immediate victory */}
+                {/* Guest sees host disconnected - show timer and claim victory option */}
                 {!isHost ? (
                   <>
-                    <Crown className="w-16 h-16 text-primary mx-auto mb-4" />
-                    <h2 className="font-pirate text-2xl text-primary mb-2">
-                      Host Disconnected!
+                    <WifiOff className="w-16 h-16 text-destructive mx-auto mb-4" />
+                    <h2 className="font-pirate text-2xl text-destructive mb-2">
+                      Host Disconnected
                     </h2>
-                    <p className="text-muted-foreground mb-6">
-                      The host has left the game. You win by forfeit!
+                    <p className="text-muted-foreground mb-4">
+                      The host has lost connection to the game.
                     </p>
                     
+                    {/* Disconnect Timer */}
+                    <div className="mb-6 p-3 rounded-lg bg-muted/50 border border-border">
+                      <p className="text-sm text-muted-foreground mb-1">Time disconnected</p>
+                      <p className="font-pirate text-2xl text-foreground">
+                        {Math.floor(disconnectTimer / 60)}:{(disconnectTimer % 60).toString().padStart(2, '0')}
+                      </p>
+                      {disconnectTimer < 30 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Claim victory available in {30 - disconnectTimer}s
+                        </p>
+                      )}
+                    </div>
+                    
                     <div className="space-y-3">
+                      {/* Claim Victory Button - available after 30 seconds */}
+                      {disconnectTimer >= 30 && (
+                        <Button 
+                          onClick={() => {
+                            playSound('game-win');
+                            recordGameResult(true);
+                            setShowDisconnectModal(false);
+                            resetMultiplayer();
+                            resetGame();
+                          }} 
+                          className="w-full bg-primary hover:bg-primary/90"
+                        >
+                          <Crown className="w-5 h-5 mr-2" />
+                          Claim Victory
+                        </Button>
+                      )}
+                      
                       <Button 
-                        onClick={() => {
-                          playSound('game-win');
-                          recordGameResult(true);
-                          setShowDisconnectModal(false);
-                          resetMultiplayer();
-                          resetGame();
-                        }} 
-                        className="w-full game-button"
+                        variant={disconnectTimer >= 30 ? "outline" : "default"}
+                        className={cn(
+                          "w-full",
+                          disconnectTimer < 30 && "game-button"
+                        )}
+                        disabled
                       >
-                        <Crown className="w-5 h-5 mr-2" />
-                        Claim Victory
+                        <WifiOff className="w-5 h-5 mr-2" />
+                        Waiting for Host...
                       </Button>
+                      
                       <Button 
                         variant="ghost"
                         onClick={() => {
