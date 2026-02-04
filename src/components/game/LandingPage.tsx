@@ -31,6 +31,11 @@ const difficultyConfig: Record<Difficulty, {
     label: 'Dread Pirate',
     description: 'Only for sea dogs',
     color: 'text-destructive border-destructive/30 bg-destructive/10'
+  },
+  expert: {
+    label: 'Pirate Lord',
+    description: 'Perfect play, no mercy',
+    color: 'text-purple-400 border-purple-400/30 bg-purple-400/10'
   }
 };
 
@@ -216,7 +221,7 @@ export const LandingPage = () => {
                 {/* Difficulty selection */}
                 <div className="mb-6">
                   <label className="block text-sm text-muted-foreground mb-3 text-left">Difficulty</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(Object.keys(difficultyConfig) as Difficulty[]).map(level => {
                   const config = difficultyConfig[level];
                   return <button key={level} onClick={() => handleDifficultyChange(level)} className={cn('p-3 rounded-lg border-2 transition-all duration-200', difficulty === level ? config.color : 'border-border hover:border-primary/30 bg-muted/30')}>

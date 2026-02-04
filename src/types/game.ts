@@ -42,7 +42,7 @@ export interface HiddenTreasure {
 
 export type GamePhase = 'lobby' | 'playing' | 'roundEnd' | 'gameEnd';
 export type TurnAction = 'take' | 'exchange' | 'sell' | null;
-export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export type ActionType = 'take' | 'take-ships' | 'exchange' | 'sell' | 'raid' | 'storm';
 
 export interface ActionDisplay {
