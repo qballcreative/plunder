@@ -69,7 +69,20 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
   hostGame: async (playerName: string) => {
     return new Promise((resolve, reject) => {
       const shortCode = generateShortCode();
-      const peer = new Peer(shortCode); // Use custom short code as peer ID
+      // Configure with public STUN/TURN servers for better NAT traversal
+      const peer = new Peer(shortCode, {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' },
+          ]
+        },
+        debug: 1, // Log errors only
+      });
       
       peer.on('open', (id) => {
         set({ 
@@ -157,7 +170,20 @@ export const useMultiplayerStore = create<MultiplayerStore>((set, get) => ({
 
   joinGame: async (hostId: string, playerName: string) => {
     return new Promise((resolve, reject) => {
-      const peer = new Peer();
+      // Configure with public STUN/TURN servers for better NAT traversal
+      const peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' },
+          ]
+        },
+        debug: 1, // Log errors only
+      });
       
       peer.on('open', (id) => {
         set({ 
