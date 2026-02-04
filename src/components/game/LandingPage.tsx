@@ -11,7 +11,6 @@ import logoImage from '@/assets/Logo.png';
 import { Anchor, Swords, Users, Ship, Gem, Coins, Wine, CircleDot, Shirt, CloudLightning, Crosshair, Gift, Trophy, Skull, RotateCcw } from 'lucide-react';
 import { SettingsPanel } from './SettingsPanel';
 import { MultiplayerLobby } from './MultiplayerLobby';
-
 const difficultyConfig: Record<Difficulty, {
   label: string;
   description: string;
@@ -38,7 +37,6 @@ const difficultyConfig: Record<Difficulty, {
     color: 'text-purple-400 border-purple-400/30 bg-purple-400/10'
   }
 };
-
 const optionalRulesConfig = [{
   key: 'stormRule' as keyof OptionalRules,
   icon: CloudLightning,
@@ -58,7 +56,6 @@ const optionalRulesConfig = [{
   description: 'Hidden bonus tokens revealed at round end',
   color: 'text-amber-400 border-amber-400/30 bg-amber-400/10'
 }];
-
 const goods = [{
   icon: Wine,
   label: 'Rum',
@@ -84,26 +81,25 @@ const goods = [{
   label: 'Gemstones',
   color: 'text-emerald-400'
 }];
-
 export const LandingPage = () => {
-  const { 
-    playerName: savedPlayerName, 
-    lastDifficulty, 
-    lastOptionalRules, 
+  const {
+    playerName: savedPlayerName,
+    lastDifficulty,
+    lastOptionalRules,
     stats,
     setPlayerName: savePlayerName,
     setLastDifficulty,
     setLastOptionalRules,
-    resetStats,
+    resetStats
   } = usePlayerStore();
-
   const [playerName, setPlayerName] = useState(savedPlayerName);
   const [difficulty, setDifficulty] = useState<Difficulty>(lastDifficulty);
   const [optionalRules, setOptionalRules] = useState<OptionalRules>(lastOptionalRules);
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const { startGame } = useGameStore();
+  const {
+    startGame
+  } = useGameStore();
 
   // Sync local state with stored preferences on mount
   useEffect(() => {
@@ -111,18 +107,18 @@ export const LandingPage = () => {
     setDifficulty(lastDifficulty);
     setOptionalRules(lastOptionalRules);
   }, [savedPlayerName, lastDifficulty, lastOptionalRules]);
-
   const toggleRule = (key: keyof OptionalRules) => {
-    const newRules = { ...optionalRules, [key]: !optionalRules[key] };
+    const newRules = {
+      ...optionalRules,
+      [key]: !optionalRules[key]
+    };
     setOptionalRules(newRules);
     setLastOptionalRules(newRules);
   };
-
   const handleDifficultyChange = (level: Difficulty) => {
     setDifficulty(level);
     setLastDifficulty(level);
   };
-
   const handleStart = () => {
     const name = playerName.trim() || 'Captain';
     savePlayerName(name);
@@ -198,7 +194,7 @@ export const LandingPage = () => {
 
           {/* Game setup or Multiplayer Lobby */}
           <AnimatePresence mode="wait">
-            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} optionalRules={optionalRules} onBack={() => setShowMultiplayer(false)} onNameChange={(name) => setPlayerName(name)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
+            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} optionalRules={optionalRules} onBack={() => setShowMultiplayer(false)} onNameChange={name => setPlayerName(name)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
             opacity: 0,
             y: 30
           }} animate={{
@@ -254,37 +250,23 @@ export const LandingPage = () => {
                 </div>
 
                 {/* Player Stats */}
-                {stats.gamesPlayed > 0 && (
-                  <div className="mb-6 p-4 rounded-lg bg-muted/30 border border-border">
+                {stats.gamesPlayed > 0 && <div className="mb-6 p-4 rounded-lg bg-muted/30 border border-border">
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm text-muted-foreground">Your Stats</label>
-                      {!showResetConfirm ? (
-                        <button
-                          onClick={() => setShowResetConfirm(true)}
-                          className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
-                        >
+                      {!showResetConfirm ? <button onClick={() => setShowResetConfirm(true)} className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1">
                           <RotateCcw className="w-3 h-3" />
                           Reset
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              resetStats();
-                              setShowResetConfirm(false);
-                            }}
-                            className="text-xs text-destructive hover:text-destructive/80 transition-colors"
-                          >
+                        </button> : <div className="flex items-center gap-2">
+                          <button onClick={() => {
+                    resetStats();
+                    setShowResetConfirm(false);
+                  }} className="text-xs text-destructive hover:text-destructive/80 transition-colors">
                             Confirm
                           </button>
-                          <button
-                            onClick={() => setShowResetConfirm(false)}
-                            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          >
+                          <button onClick={() => setShowResetConfirm(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                             Cancel
                           </button>
-                        </div>
-                      )}
+                        </div>}
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="p-2 rounded bg-muted/50">
@@ -306,8 +288,7 @@ export const LandingPage = () => {
                         <p className="text-xs text-muted-foreground">Losses</p>
                       </div>
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 {/* Start buttons */}
                 <div className="space-y-3">
@@ -318,7 +299,7 @@ export const LandingPage = () => {
                   
                   <Button variant="outline" className="w-full border-accent/30 text-accent hover:bg-accent/10" onClick={() => setShowMultiplayer(true)}>
                     <Users className="w-5 h-5 mr-2" />
-                    Multiplayer (Under Construction)  
+                    Multiplayer (Host / Join)     
                   </Button>
                 </div>
               </motion.div>}
