@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Difficulty, OptionalRules } from '@/types/game';
+import { Difficulty } from '@/types/game';
 
 interface PlayerStats {
   gamesPlayed: number;
@@ -12,7 +12,6 @@ interface PlayerState {
   // Preferences
   playerName: string;
   lastDifficulty: Difficulty;
-  lastOptionalRules: OptionalRules;
   
   // Stats
   stats: PlayerStats;
@@ -20,17 +19,10 @@ interface PlayerState {
   // Actions
   setPlayerName: (name: string) => void;
   setLastDifficulty: (difficulty: Difficulty) => void;
-  setLastOptionalRules: (rules: OptionalRules) => void;
   recordGameResult: (won: boolean) => void;
   resetStats: () => void;
   resetAll: () => void;
 }
-
-const defaultOptionalRules: OptionalRules = {
-  stormRule: false,
-  pirateRaid: false,
-  treasureChest: false,
-};
 
 const defaultStats: PlayerStats = {
   gamesPlayed: 0,
@@ -43,14 +35,11 @@ export const usePlayerStore = create<PlayerState>()(
     (set) => ({
       playerName: '',
       lastDifficulty: 'medium',
-      lastOptionalRules: defaultOptionalRules,
       stats: defaultStats,
 
       setPlayerName: (name) => set({ playerName: name }),
       
       setLastDifficulty: (difficulty) => set({ lastDifficulty: difficulty }),
-      
-      setLastOptionalRules: (rules) => set({ lastOptionalRules: rules }),
       
       recordGameResult: (won) => set((state) => ({
         stats: {
@@ -65,7 +54,6 @@ export const usePlayerStore = create<PlayerState>()(
       resetAll: () => set({
         playerName: '',
         lastDifficulty: 'medium',
-        lastOptionalRules: defaultOptionalRules,
         stats: defaultStats,
       }),
     }),

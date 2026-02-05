@@ -3,26 +3,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useMultiplayerStore } from '@/store/multiplayerStore';
 import { useGameStore } from '@/store/gameStore';
 import { usePlayerStore } from '@/store/playerStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, Users, Loader2, ArrowLeft, Anchor, Wifi, WifiOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { OptionalRules } from '@/types/game';
 
 interface MultiplayerLobbyProps {
   playerName: string;
-  optionalRules: OptionalRules;
   onBack: () => void;
   onNameChange: (name: string) => void;
 }
 
-export const MultiplayerLobby = ({ playerName, optionalRules, onBack, onNameChange }: MultiplayerLobbyProps) => {
+export const MultiplayerLobby = ({ playerName, onBack, onNameChange }: MultiplayerLobbyProps) => {
   const [mode, setMode] = useState<'select' | 'host' | 'join'>('select');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [isReady, setIsReady] = useState(false);
   
   const { setPlayerName: savePlayerName } = usePlayerStore();
+  const { optionalRules } = useSettingsStore();
   
   const { 
     state, 
