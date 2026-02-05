@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { OptionalRules } from '@/types/game';
 
 interface SettingsState {
   soundEnabled: boolean;
@@ -7,6 +8,7 @@ interface SettingsState {
   soundVolume: number;
   musicVolume: number;
   actionNotificationDuration: number;
+  optionalRules: OptionalRules;
   
   // Actions
   setSoundEnabled: (enabled: boolean) => void;
@@ -14,7 +16,15 @@ interface SettingsState {
   setSoundVolume: (volume: number) => void;
   setMusicVolume: (volume: number) => void;
   setActionNotificationDuration: (duration: number) => void;
+  setOptionalRule: (key: keyof OptionalRules, value: boolean) => void;
+  setOptionalRules: (rules: OptionalRules) => void;
 }
+
+const defaultOptionalRules: OptionalRules = {
+  stormRule: false,
+  pirateRaid: false,
+  treasureChest: false,
+};
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -24,12 +34,17 @@ export const useSettingsStore = create<SettingsState>()(
       soundVolume: 0.7,
       musicVolume: 0.3,
       actionNotificationDuration: 3,
+      optionalRules: defaultOptionalRules,
 
       setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
       setMusicEnabled: (enabled) => set({ musicEnabled: enabled }),
       setSoundVolume: (volume) => set({ soundVolume: volume }),
       setMusicVolume: (volume) => set({ musicVolume: volume }),
       setActionNotificationDuration: (duration) => set({ actionNotificationDuration: duration }),
+      setOptionalRule: (key, value) => set((state) => ({
+        optionalRules: { ...state.optionalRules, [key]: value },
+      })),
+      setOptionalRules: (rules) => set({ optionalRules: rules }),
     }),
     {
       name: 'plunder-settings',

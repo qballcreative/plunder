@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { usePlayerStore } from '@/store/playerStore';
-import { Difficulty, OptionalRules } from '@/types/game';
+import { useSettingsStore } from '@/store/settingsStore';
+import { Difficulty } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import heroBg from '@/assets/hero-bg.jpg';
 import logoImage from '@/assets/Logo.png';
-import { Anchor, Swords, Users, Ship, Gem, Coins, Wine, CircleDot, Shirt, CloudLightning, Crosshair, Gift, Trophy, Skull, RotateCcw } from 'lucide-react';
+import { Anchor, Swords, Users, Ship, Gem, Coins, Wine, CircleDot, Shirt, Trophy, Skull, RotateCcw } from 'lucide-react';
 import { SettingsPanel } from './SettingsPanel';
 import { MultiplayerLobby } from './MultiplayerLobby';
+
 const difficultyConfig: Record<Difficulty, {
   label: string;
   description: string;
@@ -37,25 +39,7 @@ const difficultyConfig: Record<Difficulty, {
     color: 'text-purple-400 border-purple-400/30 bg-purple-400/10'
   }
 };
-const optionalRulesConfig = [{
-  key: 'stormRule' as keyof OptionalRules,
-  icon: CloudLightning,
-  label: 'Storm Rule',
-  description: 'Every 3rd turn, discard 2 random market cards',
-  color: 'text-blue-400 border-blue-400/30 bg-blue-400/10'
-}, {
-  key: 'pirateRaid' as keyof OptionalRules,
-  icon: Crosshair,
-  label: 'Pirate Raid',
-  description: 'Steal one card from opponent once per game',
-  color: 'text-red-400 border-red-400/30 bg-red-400/10'
-}, {
-  key: 'treasureChest' as keyof OptionalRules,
-  icon: Gift,
-  label: 'Treasure Chest',
-  description: 'Hidden bonus tokens revealed at round end',
-  color: 'text-amber-400 border-amber-400/30 bg-amber-400/10'
-}];
+
 const goods = [{
   icon: Wine,
   label: 'Rum',
@@ -85,16 +69,16 @@ export const LandingPage = () => {
   const {
     playerName: savedPlayerName,
     lastDifficulty,
-    lastOptionalRules,
     stats,
     setPlayerName: savePlayerName,
     setLastDifficulty,
-    setLastOptionalRules,
     resetStats
   } = usePlayerStore();
+  
+  const { optionalRules } = useSettingsStore();
+  
   const [playerName, setPlayerName] = useState(savedPlayerName);
   const [difficulty, setDifficulty] = useState<Difficulty>(lastDifficulty);
-  const [optionalRules, setOptionalRules] = useState<OptionalRules>(lastOptionalRules);
   const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const {
@@ -105,20 +89,13 @@ export const LandingPage = () => {
   useEffect(() => {
     setPlayerName(savedPlayerName);
     setDifficulty(lastDifficulty);
-    setOptionalRules(lastOptionalRules);
-  }, [savedPlayerName, lastDifficulty, lastOptionalRules]);
-  const toggleRule = (key: keyof OptionalRules) => {
-    const newRules = {
-      ...optionalRules,
-      [key]: !optionalRules[key]
-    };
-    setOptionalRules(newRules);
-    setLastOptionalRules(newRules);
-  };
+  }, [savedPlayerName, lastDifficulty]);
+
   const handleDifficultyChange = (level: Difficulty) => {
     setDifficulty(level);
     setLastDifficulty(level);
   };
+  
   const handleStart = () => {
     const name = playerName.trim() || 'Captain';
     savePlayerName(name);
@@ -194,7 +171,7 @@ export const LandingPage = () => {
 
           {/* Game setup or Multiplayer Lobby */}
           <AnimatePresence mode="wait">
-            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} optionalRules={optionalRules} onBack={() => setShowMultiplayer(false)} onNameChange={name => setPlayerName(name)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
+            {showMultiplayer ? <MultiplayerLobby key="multiplayer" playerName={playerName || 'Captain'} onBack={() => setShowMultiplayer(false)} onNameChange={name => setPlayerName(name)} /> : <motion.div key="setup" className="bg-card/90 backdrop-blur-md rounded-2xl p-6 lg:p-8 border border-primary/30 shadow-2xl max-w-md mx-auto" initial={{
             opacity: 0,
             y: 30
           }} animate={{
@@ -225,27 +202,6 @@ export const LandingPage = () => {
                           <p className="text-xs text-muted-foreground mt-1 hidden lg:block">{config.description}</p>
                         </button>;
                 })}
-                  </div>
-                </div>
-
-                {/* Optional Rules */}
-                <div className="mb-6">
-                  <label className="block text-sm text-muted-foreground mb-3 text-left">Optional Rules</label>
-                  <div className="space-y-2">
-                    {optionalRulesConfig.map(rule => <button key={rule.key} onClick={() => toggleRule(rule.key)} className={cn('w-full p-3 rounded-lg border-2 transition-all duration-200 text-left flex items-center gap-3', optionalRules[rule.key] ? rule.color : 'border-border hover:border-primary/30 bg-muted/30')}>
-                        <rule.icon className={cn('w-5 h-5 flex-shrink-0', optionalRules[rule.key] ? '' : 'text-muted-foreground')} />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm">{rule.label}</p>
-                          <p className="text-xs text-muted-foreground truncate">{rule.description}</p>
-                        </div>
-                        <div className={cn('w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors', optionalRules[rule.key] ? 'bg-current border-current' : 'border-muted-foreground')}>
-                          {optionalRules[rule.key] && <motion.div initial={{
-                      scale: 0
-                    }} animate={{
-                      scale: 1
-                    }} className="w-2 h-2 rounded-full bg-background" />}
-                        </div>
-                      </button>)}
                   </div>
                 </div>
 
