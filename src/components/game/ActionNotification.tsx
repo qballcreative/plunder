@@ -69,11 +69,11 @@ export const ActionNotification = ({ action, show }: ActionNotificationProps) =>
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          className="fixed top-20 inset-x-0 z-50 pointer-events-none flex justify-center px-4"
         >
           <div className={cn(
             'px-6 py-4 rounded-2xl bg-gradient-to-br border shadow-2xl backdrop-blur-sm',
-            'min-w-[280px] max-w-[400px]',
+            'min-w-0 max-w-[400px] w-full sm:w-auto sm:min-w-[280px]',
             colorClass
           )}>
             {/* Header */}
