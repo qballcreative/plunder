@@ -1,125 +1,45 @@
 
-# Plan: Enhanced AI Opponent
+# Plan: Fix Action Notification Centering on Mobile
 
-## Overview
-The current AI opponent needs significant improvements to provide a challenging experience on hard difficulty. The AI currently has a simplistic scoring system that doesn't account for key strategic elements of the game.
+## Problem
+The action notification popup that shows when other players take actions is offset and extends past the right edge of the screen on mobile devices. It's not properly centered.
 
-## Current Weaknesses Identified
+## Root Cause
+The current styling uses `left-1/2 -translate-x-1/2` for centering, but the inner container has fixed `min-w-[280px] max-w-[400px]` which can exceed viewport width on small screens. Additionally, there's no horizontal padding to prevent the notification from touching screen edges.
 
-| Weakness | Impact |
-|----------|--------|
-| No exchange actions | AI misses opportunities to acquire multiple valuable cards at once |
-| No blocking awareness | AI doesn't prevent player from completing valuable sets |
-| Poor sell timing | AI sells too early, getting lower tokens when waiting could yield bonus tokens |
-| No token scarcity awareness | AI doesn't race for high-value tokens before they run out |
-| Difficulty only adds randomness | Hard mode uses same weak evaluation, just picks the "best" bad option |
+## Solution
+Update the positioning and sizing in `ActionNotification.tsx` to:
+1. Use a wrapper with proper horizontal margins/padding
+2. Constrain the width to not exceed screen bounds
+3. Ensure proper centering with `inset-x-0` and flexbox
 
-## Proposed AI Improvements
+## Technical Changes
 
-### 1. Strategic Evaluation System
-Add multiple scoring factors with configurable weights by difficulty:
+**File: `src/components/game/ActionNotification.tsx`**
 
-- **Token Urgency Score**: Prioritize goods where high-value tokens are about to run out
-- **Set Completion Bonus**: Massive bonus when close to 4-5 card bonuses
-- **Opponent Blocking Score**: Detect what opponent is collecting and deprive them
-- **Sell Timing Intelligence**: Wait for 3+ cards unless tokens are running out
-- **Exchange Evaluation**: Calculate net value gain from exchange opportunities
-
-### 2. Difficulty-Based Strategy Weights
-
-| Factor | Easy | Medium | Hard |
-|--------|------|--------|------|
-| Blocking opponent | 0% | 30% | 80% |
-| Bonus token pursuit | Low | Medium | Aggressive |
-| Sell timing | Impatient | Moderate | Optimal |
-| Look-ahead depth | None | 1 turn | 2 turns |
-| Random variance | High | Medium | Low |
-
-### 3. New Capabilities
-
-**Exchange Action Support**
-- Evaluate market cards the AI needs
-- Consider trading ships + low-value cards for high-value targets
-- Calculate net score improvement from exchange
-
-**Opponent Awareness (Medium/Hard)**
-- Track what cards opponent is collecting
-- Prioritize taking cards that block opponent's sets
-- Steal high-value targets using Pirate Raid more strategically
-
-**Optimal Sell Timing (Hard)**
-- Calculate expected value of waiting vs selling now
-- Factor in token depletion rate
-- Pursue 4-5 card bonuses aggressively
-
-**Token Race Detection (Hard)**
-- Identify when valuable token stacks are nearly depleted
-- Rush to sell before tokens run out
-- Block opponent from getting last high-value tokens
-
-## Technical Implementation
-
-### File Changes
-
-**`src/store/gameStore.ts`**
-
-1. **Add helper functions for AI analysis:**
-   - `getOpponentProgress()`: Analyze what the opponent is collecting
-   - `evaluateTokenUrgency()`: Score based on remaining high-value tokens
-   - `evaluateExchangeValue()`: Calculate net gain from potential exchanges
-   - `evaluateSellTiming()`: Determine optimal time to sell
-
-2. **Rewrite `makeAIMove()` function:**
-   - Add exchange evaluation logic
-   - Implement difficulty-based weight system
-   - Add look-ahead for Hard difficulty
-   - Reduce randomness on Hard difficulty to ~10%
-
-3. **Add strategic scoring factors:**
-   - Blocking score when opponent has 2+ of a type
-   - Bonus pursuit score when AI has 3-4 of a type
-   - Urgency score based on token stack size
-
-### Pseudocode for Enhanced Scoring
-
-```text
-For each potential action:
-  baseScore = immediate token value gained
-  
-  if SELL action:
-    bonusScore = bonus token value (3/4/5 cards)
-    urgencyScore = if stack depleting, increase priority
-    timingPenalty = if selling 1-2 cards when could wait for 3+, reduce score
-  
-  if TAKE action:
-    setProgress = count of matching cards in hand
-    bonusProximity = high score if would reach 3/4/5 cards
-    opponentBlock = if opponent has 2+ of this type, add blocking bonus
-    
-  if EXCHANGE action:
-    netGain = sum(value of cards gained) - sum(value of cards given)
-    bonusOpportunity = does exchange enable a 4-5 card sale?
-    
-  if RAID action (hard mode):
-    targetValue = pick opponent's most threatening card
-    
-  totalScore = baseScore * weights[difficulty]
-             + blocking * blockingWeight[difficulty]
-             + bonusOpportunity * bonusWeight[difficulty]
+Change line 72 positioning from:
+```tsx
+className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
 ```
 
-## Expected Results
+To:
+```tsx
+className="fixed top-20 inset-x-0 z-50 pointer-events-none flex justify-center px-4"
+```
 
-| Difficulty | Win Rate (current) | Win Rate (after) |
-|------------|-------------------|------------------|
-| Easy | ~30% | ~25-35% |
-| Medium | ~40% | ~45-55% |
-| Hard | ~50% | ~65-75% |
+And update line 76 inner container max-width:
+```tsx
+'min-w-[280px] max-w-[400px]'
+```
 
-## Summary of Changes
+To:
+```tsx
+'min-w-0 max-w-[400px] w-full sm:w-auto sm:min-w-[280px]'
+```
 
-| File | Change |
-|------|--------|
-| `src/store/gameStore.ts` | Complete rewrite of `makeAIMove()` with strategic evaluation, exchange support, opponent tracking, and difficulty-based weights |
-
-This enhancement will make Hard difficulty a genuine challenge by giving the AI strategic awareness comparable to an experienced player.
+This ensures:
+- `inset-x-0` spans the full viewport width
+- `flex justify-center` properly centers the content
+- `px-4` adds horizontal padding to prevent edge overflow
+- `w-full sm:w-auto` makes content responsive on small screens
+- `min-w-0` removes the minimum width constraint on mobile
